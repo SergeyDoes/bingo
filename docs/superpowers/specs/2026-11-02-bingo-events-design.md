@@ -8,6 +8,7 @@ Build a web service for hosting shared bingo events. A host defines possible tri
 
 - Hosts can create and manage an event, its trigger pool, card size, and signup deadline.
 - Participants can join an event and choose triggers for their personal card before the signup deadline and event start.
+- The host may also join as a participant before start, using a public display name and a separate personal card while keeping host controls.
 - The host can mark triggers as occurred during the event.
 - Scores count completed rows, columns, and the two main diagonals; a leaderboard shows final scores.
 - The frontend can be published on GitHub Pages, with Supabase providing authentication and shared persistence.
@@ -31,7 +32,11 @@ Build a web service for hosting shared bingo events. A host defines possible tri
 ## Product behavior
 
 - Each event has a host, title, trigger pool, square card size, signup deadline, status, and invite link.
-- Each participant chooses distinct triggers from the event pool for their card. The board is a square grid.
+- Event cards show the event title with an event emoji. Each trigger has its own emoji and readable label; hosts select icons from an expanded grid palette that includes 🤡, 💀, ▶️, 🔁, ⏯️, and ⏸️.
+- Each participant chooses a public display name and distinct triggers from the event pool for their card. They can drag available triggers into chosen cells and rearrange filled cells; click-to-add and click-to-remove remain available. Their email remains private. The board is a square grid.
+- The host may create their own participant entry before start; after start, no new cards can be added.
+- Hosts can revise the title, signup deadline, and trigger pool before start; card size is fixed when the event is created.
+- Invite links use hash-based routes (`/#/e/<token>`) so they work on a static GitHub Pages host.
 - The host's occurred/not-occurred state for each trigger is shared across all participant cards.
 - A completed line is a fully occurred horizontal row, vertical column, or main diagonal. A completed line is worth one point. A participant's score is the number of completed lines; the leaderboard sorts by score.
 - The signup deadline automatically starts the event: participant cards lock and the event becomes active. The host may also start the event manually before the deadline; manual start locks cards immediately and begins the active phase.
