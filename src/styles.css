@@ -186,6 +186,23 @@ a { color: inherit; text-decoration: none; }
 .trigger-editor-row .emoji-picker-trigger { position: relative; width: 100%; height: 52px; min-height: 52px; padding: 0; align-items: center; justify-content: center; }
 .trigger-editor-row .emoji-picker-trigger > span { display: grid; width: auto; height: auto; place-items: center; text-align: center; }
 .trigger-editor-row .emoji-picker-trigger > small { position: absolute; right: 3px; bottom: 2px; font-size: 7px; }
+.public-home-section { width: min(1040px, 100%); min-height: calc(100vh - 150px); margin: 0 auto; padding: clamp(45px, 9vh, 92px) 0 55px; display: grid; align-content: start; grid-template-columns: minmax(230px, .75fr) minmax(0, 1.25fr); align-items: start; gap: clamp(35px, 7vw, 90px); }
+.public-home-heading h1 { margin: 25px 0 12px; font-size: clamp(46px, 6vw, 76px); line-height: .95; letter-spacing: -.07em; }
+.public-home-heading h1 span { color: var(--acid); }
+.public-home-heading p { max-width: 290px; color: #aeb0a7; font-size: 13px; line-height: 1.6; }
+.public-home-list { display: grid; gap: 9px; }
+.public-home-card { min-height: 104px; padding: 14px; position: relative; display: grid; grid-template-columns: 50px minmax(0, 1fr) auto 12px; align-items: center; gap: 13px; border: 1px solid var(--line); background: #171914; color: var(--paper); text-decoration: none; transition: border-color .15s, transform .15s; }
+.public-home-card:hover { border-color: var(--acid); transform: translateY(-2px); }
+.public-home-card-mark { width: 48px; height: 48px; display: grid; place-items: center; background: rgba(211, 243, 107, .08); font-size: 28px; }
+.public-home-card-main { min-width: 0; display: grid; gap: 4px; }
+.public-home-card-main small, .public-home-card-deadline { color: var(--acid); font: 8px var(--mono); letter-spacing: .06em; }
+.public-home-card-main strong { overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.public-home-card-main > span { color: #9b9e94; font-size: 10px; }
+.public-home-card-deadline { color: #989b91; line-height: 1.6; text-align: right; white-space: nowrap; }
+.public-home-empty { padding: 20px; border: 1px dashed var(--line); color: #aeb0a7; font-size: 12px; line-height: 1.6; }
+.public-home-empty .button { margin-top: 10px; }
+.landing-directory .site-footer { width: min(1040px, 100%); margin: 0 auto; }
+@media (max-width: 720px) { .public-home-section { grid-template-columns: 1fr; gap: 24px; padding-top: 42px; } .public-home-heading h1 { margin-top: 15px; font-size: 54px; } .public-home-card { grid-template-columns: 42px minmax(0, 1fr) 10px; gap: 10px; } .public-home-card-mark { width: 40px; height: 40px; font-size: 23px; } .public-home-card-deadline { display: none; } }
 .public-events-section { margin-top: 20px; padding: 24px; border: 1px solid var(--line); background: #171914; }
 .public-events-section .panel-heading { margin-bottom: 14px; }
 .public-events-empty { padding: 28px 12px; border: 1px dashed var(--line); color: #85887e; text-align: center; font-size: 11px; }

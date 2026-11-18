@@ -9,7 +9,7 @@ export default function AuthPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const locationState = location.state as { from?: string } | null;
-  const returnTo = locationState?.from?.startsWith('/') ? locationState.from : '/dashboard';
+  const returnTo = locationState?.from?.startsWith('/') ? locationState.from : '/';
 
   async function signIn() {
     setBusy(true);

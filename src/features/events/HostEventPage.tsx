@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { EventRow, EventTriggerRow, ParticipantRow } from '../../lib/database.types';
 import { formatError } from '../../lib/errors';
@@ -28,9 +28,7 @@ export default function HostEventPage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [copyDone, setCopyDone] = useState(false);
-  const [hostDisplayName, setHostDisplayName] = useState('');
   const [joiningAsPlayer, setJoiningAsPlayer] = useState(false);
-  const [showPlayerJoin, setShowPlayerJoin] = useState(false);
   const [starting, setStarting] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -79,13 +77,12 @@ export default function HostEventPage() {
     }
   }
 
-  async function joinAsPlayer(submitEvent: FormEvent<HTMLFormElement>) {
-    submitEvent.preventDefault();
-    if (!event || !hostDisplayName.trim()) return;
+  async function joinAsPlayer() {
+    if (!event) return;
     setJoiningAsPlayer(true);
     setError('');
     try {
-      const result = await joinEvent(event.invite_token, hostDisplayName);
+      const result = await joinEvent(event.invite_token);
       if (!result.participantId) throw new Error('Не удалось создать карточку игрока.');
       navigate(`/play/${event.id}`);
     } catch (cause) {
@@ -167,17 +164,12 @@ export default function HostEventPage() {
         </div>
         <div className="event-page-actions">
           {isHostParticipant && <Link className="button button-outline" to={`/play/${event.id}`}>Моя карточка <span aria-hidden="true">↗</span></Link>}
-          {phase === 'signup' && !isHostParticipant && <button className="button button-outline" type="button" onClick={() => setShowPlayerJoin((visible) => !visible)}>{showPlayerJoin ? 'Не сейчас' : 'Играть самому'} <span aria-hidden="true">↗</span></button>}
+          {phase === 'signup' && !isHostParticipant && <button className="button button-outline" type="button" onClick={() => void joinAsPlayer()} disabled={joiningAsPlayer}>{joiningAsPlayer ? 'Подключаемся…' : `Играть как ${String(user?.user_metadata?.name || 'Twitch')}`} <span aria-hidden="true">↗</span></button>}
           {phase === 'signup' && isHost && <button className="button button-primary" onClick={() => void startEarly()} disabled={starting}>{starting ? 'Запускаем…' : 'Стартовать сейчас'} <span aria-hidden="true">↗</span></button>}
           {phase === 'active' && isHost && <button className="button button-outline" onClick={() => void finishEvent()} disabled={finalizing}>{finalizing ? 'Фиксируем…' : 'Завершить и подвести итоги'} <span aria-hidden="true">✓</span></button>}
           {phase === 'signup' && isHost && <small>Карточки заблокируются сразу</small>}
         </div>
       </div>
-
-      {showPlayerJoin && phase === 'signup' && !isHostParticipant && <form className="host-player-join" onSubmit={(submitEvent) => void joinAsPlayer(submitEvent)}>
-        <div><label htmlFor="host-player-name">Имя в игре</label><input id="host-player-name" autoComplete="nickname" maxLength={32} placeholder="Как тебя будут звать за столом?" value={hostDisplayName} onChange={(inputEvent) => setHostDisplayName(inputEvent.target.value)} required /></div>
-        <button className="button button-primary" type="submit" disabled={joiningAsPlayer}>{joiningAsPlayer ? 'Заходим…' : 'Создать свою карточку'} <span aria-hidden="true">↗</span></button>
-      </form>}
 
       {error && <div className="inline-error" role="alert">{error}</div>}
       {notice && <div className="inline-notice" role="status">{notice}<button className="quiet-button" onClick={() => setNotice('')} aria-label="Скрыть сообщение">×</button></div>}

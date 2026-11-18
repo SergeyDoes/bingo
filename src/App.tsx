@@ -1,4 +1,4 @@
-import { useEffect, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import AuthPage from './features/auth/AuthPage';
 import { AuthProvider, useAuth } from './features/auth/AuthProvider';
@@ -7,6 +7,9 @@ import DashboardPage from './features/events/DashboardPage';
 import HostEventPage from './features/events/HostEventPage';
 import JoinEventPage from './features/cards/JoinEventPage';
 import ParticipantEventPage from './features/cards/ParticipantEventPage';
+import { listPublicEvents } from './features/events/eventApi';
+import type { EventRow } from './lib/database.types';
+import { formatError } from './lib/errors';
 
 function Brand() {
   return (
@@ -18,68 +21,34 @@ function Brand() {
 }
 
 function LandingPage() {
-  const scrollToHowItWorks = (event: MouseEvent<HTMLAnchorElement>) => {
-    event.preventDefault();
-    document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const { user } = useAuth();
+  const [publicEvents, setPublicEvents] = useState<EventRow[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!user) { setPublicEvents([]); return; }
+    let active = true;
+    setLoadingEvents(true);
+    void listPublicEvents().then(setPublicEvents).catch((cause) => setError(formatError(cause, 'Не удалось загрузить публичные бинго.'))).finally(() => {
+      if (active) setLoadingEvents(false);
+    });
+    return () => { active = false; };
+  }, [user]);
 
   return (
-    <main className="landing">
+    <main className="landing landing-directory">
       <header className="topbar">
         <Brand />
         <nav className="topbar-nav" aria-label="Основная навигация">
-          <a href="#how-it-works" onClick={scrollToHowItWorks}>Как это работает</a>
-          <Link className="button button-small button-outline" to="/login">Войти <span aria-hidden="true">↗</span></Link>
+          {user ? <Link className="button button-small button-outline" to="/dashboard">Мои бинго <span aria-hidden="true">↗</span></Link> : <Link className="button button-small button-outline" to="/login">Войти через Twitch <span aria-hidden="true">↗</span></Link>}
         </nav>
       </header>
-
-      <section className="hero" aria-labelledby="hero-title">
-        <div className="hero-copy">
-          <div className="eyebrow"><span className="live-dot" /> ИГРАЙТЕ ВМЕСТЕ, ГДЕ БЫ ВЫ НИ БЫЛИ</div>
-          <h1 id="hero-title">Ставки сделаны.<br /><span>События — нет.</span></h1>
-          <p className="hero-lede">Создай бинго на любой повод. Собери компанию. Отмечай, что сбылось. Остальное — дело удачи.</p>
-          <div className="hero-actions">
-            <Link className="button button-primary" to="/login">Создать своё бинго <span aria-hidden="true">↗</span></Link>
-            <a className="text-link" href="#how-it-works" onClick={scrollToHowItWorks}>Как играть <span aria-hidden="true">↓</span></a>
-          </div>
-          <div className="hero-proof"><div className="proof-avatars"><i>А</i><i>М</i><i>К</i><b>+</b></div><span>Вечеринки, стримы, рабочие созвоны.<br />Бинго найдётся для всего.</span></div>
-        </div>
-
-        <div className="hero-art" aria-label="Пример карточки бинго" role="img">
-          <div className="art-star star-one">✳</div>
-          <div className="art-star star-two">✳</div>
-          <div className="art-note">ПЯТНИЧНЫЙ<br />СОЗВОН № 08 <span>LIVE</span></div>
-          <div className="bingo-card-preview">
-            <div className="card-preview-head"><strong>СОЗВОН<br />БИНГО</strong><span>03 × 03<br />КАРТОЧКА 01</span></div>
-            <div className="card-preview-grid">
-              <div className="tile tile-marked">Кто-то<br />опоздал <span>✓</span></div>
-              <div className="tile">«Всем<br />слышно?»</div>
-              <div className="tile tile-marked">Кот<br />в эфире <span>✓</span></div>
-              <div className="tile">Не тот<br />экран</div>
-              <div className="tile tile-center">СВОЙ<br />ТРИГГЕР</div>
-              <div className="tile">«Я на<br />мьюте»</div>
-              <div className="tile tile-marked">Уже<br />пятница <span>✓</span></div>
-              <div className="tile">Шутка<br />про кофе</div>
-              <div className="tile tile-marked">Пять<br />минут <span>✓</span></div>
-            </div>
-            <div className="card-preview-foot"><span>СЧЁТ</span><strong>02 <small>ЛИНИИ</small></strong><span className="mini-spark">✳</span></div>
-          </div>
-          <div className="floating-score"><span>БИНГО!</span><strong>+2</strong><small>ЛИНИИ ЗАКРЫТЫ</small></div>
-          <div className="art-stamp">ТВОЯ<br />ИГРА<span>✦</span></div>
-          <div className="art-coordinates">КООРДИНАТЫ: ВЕСЕЛЬЕ<br />54° 59' 00" СШ · 82° 53' 00" ВД</div>
-        </div>
+      <section className="public-home-section">
+        <div className="public-home-heading"><span className="eyebrow"><span className="live-dot" /> ОТКРЫТЫЙ НАБОР</span><h1>Публичные<br /><span>бинго.</span></h1><p>Игры, в которые можно зайти прямо сейчас.</p></div>
+        {!user ? <div className="public-home-empty"><p>Войди через Twitch, чтобы увидеть открытые бинго и присоединиться.</p><Link className="button button-primary" to="/login">Войти через Twitch <span aria-hidden="true">↗</span></Link></div> : loadingEvents ? <div className="loading-panel">Ищем открытые бинго<span className="loading-dots">•••</span></div> : error ? <div className="inline-error" role="alert">{error}</div> : publicEvents.length ? <div className="public-home-list">{publicEvents.map((event) => <Link className="public-home-card" to={`/e/${event.invite_token}`} key={event.id}><span className="public-home-card-mark">{event.emoji}</span><span className="public-home-card-main"><small>НАБОР ОТКРЫТ · {event.grid_size} × {event.grid_size}</small><strong>{event.title}</strong><span>Ведущий · {event.host_twitch_name || 'Twitch'}</span></span><span className="public-home-card-deadline">СТАРТ<br />{new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(event.signup_deadline))}</span><span className="event-card-arrow">↗</span></Link>)}</div> : <div className="public-home-empty"><p>Пока нет открытых публичных бинго. Загляни позже или создай своё.</p><Link className="button button-primary" to="/dashboard">Создать бинго <span aria-hidden="true">↗</span></Link></div>}
       </section>
-
-      <section id="how-it-works" className="how-section">
-        <div className="section-heading"><span className="eyebrow">ПРОСТО НАЧАТЬ</span><h2>Триггеры случаются.<br /><span>Бинго — тоже.</span></h2></div>
-        <div className="steps-grid">
-          <article className="step-card"><span className="step-number">01</span><div className="step-icon">✳</div><h3>Придумай игру</h3><p>Задай повод, добавь триггеры и выбери размер карточки. Например: «коллега забыл выключить микрофон».</p></article>
-          <article className="step-card"><span className="step-number">02</span><div className="step-icon step-icon-outline">↗</div><h3>Позови друзей</h3><p>Поделись ссылкой. До старта каждый соберёт свою карточку из общих триггеров — повторы не страшны.</p></article>
-          <article className="step-card"><span className="step-number">03</span><div className="step-icon">▦</div><h3>Лови моменты</h3><p>Отмечай, что произошло. Считаются завершённые ряды, столбцы и диагонали. Побеждает тот, у кого их больше.</p></article>
-        </div>
-      </section>
-
-      <footer className="site-footer"><Brand /><span>МЕНЬШЕ СКРОЛЛА. БОЛЬШЕ БИНГО.</span><span>СДЕЛАНО ДЛЯ ХОРОШИХ ИСТОРИЙ © 2026</span></footer>
+      <footer className="site-footer"><Brand /><span>ПУБЛИЧНЫЕ БИНГО · TWITCH</span><span>© 2026</span></footer>
     </main>
   );
 }

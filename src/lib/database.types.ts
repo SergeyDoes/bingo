@@ -10,6 +10,7 @@ export type EventRow = {
   id: string;
   invite_token: string;
   host_id: string;
+  host_twitch_name: string | null;
   title: string;
   emoji: string;
   is_public: boolean;

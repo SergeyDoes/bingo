@@ -28,7 +28,7 @@ npm run dev
 ## Supabase
 
 1. Создай Supabase-проект.
-2. В SQL Editor выполни SQL-файлы из `supabase/migrations/` по порядку, включая `202611180001_twitch_host_allowlist.sql` — `202611180005_test_card_2x2.sql`.
+2. В SQL Editor выполни SQL-файлы из `supabase/migrations/` по порядку, включая новые миграции до `202611180006_twitch_names.sql`.
 3. В Settings → API Keys скопируй Project URL и **publishable key** в `.env.local`.
 4. В Authentication → URL Configuration добавь адрес GitHub Pages как разрешённый Redirect URL (обычно `https://<owner>.github.io/<repo>/`).
 5. В Authentication → Sign In / Providers включи Twitch и добавь Client ID и Client Secret. В Twitch Developer Console OAuth Redirect URL должен быть `https://<project-ref>.supabase.co/auth/v1/callback`.
