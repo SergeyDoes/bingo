@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { formatError } from '../../lib/errors';
 import EmojiPicker from './EmojiPicker';
 import { DEFAULT_EVENT_EMOJI, DEFAULT_TRIGGER_EMOJI } from './emojiOptions';
@@ -9,6 +9,7 @@ interface CreateEventFormProps {
   allowGridSize?: boolean;
   submitLabel: string;
   onSubmit: (draft: EventDraft) => Promise<void>;
+  onDraftChange?: (draft: EventDraft) => void;
   onCancel?: () => void;
 }
 
@@ -20,7 +21,7 @@ function emptyTriggers(): TriggerDraft[] {
   return Array.from({ length: 9 }, () => ({ label: '', emoji: DEFAULT_TRIGGER_EMOJI }));
 }
 
-export default function CreateEventForm({ initial, allowGridSize = true, submitLabel, onSubmit, onCancel }: CreateEventFormProps) {
+export default function CreateEventForm({ initial, allowGridSize = true, submitLabel, onSubmit, onDraftChange, onCancel }: CreateEventFormProps) {
   const [title, setTitle] = useState(initial?.title ?? '');
   const [eventEmoji, setEventEmoji] = useState(initial?.emoji ?? DEFAULT_EVENT_EMOJI);
   const [gridSize, setGridSize] = useState(initial?.gridSize ?? 3);
@@ -31,6 +32,17 @@ export default function CreateEventForm({ initial, allowGridSize = true, submitL
   const [error, setError] = useState('');
   const minimum = Math.max(5, gridSize * gridSize);
   const filledCount = triggers.filter((trigger) => trigger.label.trim()).length;
+
+  useEffect(() => {
+    onDraftChange?.({
+      title,
+      emoji: eventEmoji,
+      gridSize,
+      signupDeadline: deadline,
+      isPublic,
+      triggers: triggers.map((trigger) => ({ ...trigger })),
+    });
+  }, [title, eventEmoji, gridSize, deadline, isPublic, triggers, onDraftChange]);
 
   function updateTrigger(index: number, changes: Partial<TriggerDraft>) {
     setTriggers((current) => current.map((trigger, triggerIndex) => triggerIndex === index ? { ...trigger, ...changes } : trigger));

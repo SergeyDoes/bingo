@@ -36,6 +36,37 @@ export async function listPublicEvents(): Promise<EventRow[]> {
   return data ?? [];
 }
 
+export async function getFollowedTwitchIds(): Promise<Set<string>> {
+  const client = requireSupabase();
+  const twitchClientId = import.meta.env.VITE_TWITCH_CLIENT_ID?.trim();
+  const providerToken = window.localStorage.getItem('bingo:twitch-provider-token');
+  if (!twitchClientId) throw new Error('Не настроен Twitch Client ID для поиска подписок.');
+  if (!providerToken) throw new Error('Перезайди через Twitch, чтобы разрешить чтение подписок.');
+  const { data: userId, error } = await client.rpc('get_my_twitch_id');
+  if (error) throw error;
+  if (!userId) throw new Error('Не удалось определить твой Twitch ID. Войди через Twitch ещё раз.');
+
+  const followed = new Set<string>();
+  let cursor: string | undefined;
+  do {
+    const url = new URL('https://api.twitch.tv/helix/channels/followed');
+    url.searchParams.set('user_id', userId);
+    url.searchParams.set('first', '100');
+    if (cursor) url.searchParams.set('after', cursor);
+    const response = await fetch(url, {
+      headers: { 'Client-ID': twitchClientId, Authorization: `Bearer ${providerToken}` },
+    });
+    if (!response.ok) {
+      if (response.status === 401) throw new Error('Разрешение Twitch истекло или подписки не разрешены. Выйди и войди через Twitch заново.');
+      throw new Error('Не удалось получить список Twitch-подписок. Попробуй позже.');
+    }
+    const page = await response.json() as { data?: Array<{ broadcaster_id: string }>; pagination?: { cursor?: string } };
+    for (const channel of page.data ?? []) followed.add(channel.broadcaster_id);
+    cursor = page.pagination?.cursor;
+  } while (cursor);
+  return followed;
+}
+
 export async function getEventModerators(eventId: string): Promise<string[]> {
   const { data, error } = await requireSupabase().from('event_moderators').select('user_id').eq('event_id', eventId);
   if (error) throw error;

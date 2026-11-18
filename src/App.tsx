@@ -4,10 +4,11 @@ import AuthPage from './features/auth/AuthPage';
 import { AuthProvider, useAuth } from './features/auth/AuthProvider';
 import CallbackPage from './features/auth/CallbackPage';
 import DashboardPage from './features/events/DashboardPage';
+import CreateEventPage from './features/events/CreateEventPage';
 import HostEventPage from './features/events/HostEventPage';
 import JoinEventPage from './features/cards/JoinEventPage';
 import ParticipantEventPage from './features/cards/ParticipantEventPage';
-import { listPublicEvents } from './features/events/eventApi';
+import { getFollowedTwitchIds, listPublicEvents } from './features/events/eventApi';
 import type { EventRow } from './lib/database.types';
 import { formatError } from './lib/errors';
 
@@ -25,6 +26,10 @@ function LandingPage() {
   const [publicEvents, setPublicEvents] = useState<EventRow[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [error, setError] = useState('');
+  const [onlyFollowedHosts, setOnlyFollowedHosts] = useState(false);
+  const [followedHostIds, setFollowedHostIds] = useState<Set<string>>(() => new Set());
+  const [loadingFollows, setLoadingFollows] = useState(false);
+  const [followsLoaded, setFollowsLoaded] = useState(false);
 
   useEffect(() => {
     if (!user) { setPublicEvents([]); return; }
@@ -36,6 +41,26 @@ function LandingPage() {
     return () => { active = false; };
   }, [user]);
 
+  async function toggleFollowFilter(checked: boolean) {
+    setOnlyFollowedHosts(checked);
+    if (!checked || followsLoaded) return;
+    setLoadingFollows(true);
+    setError('');
+    try {
+      setFollowedHostIds(await getFollowedTwitchIds());
+      setFollowsLoaded(true);
+    } catch (cause) {
+      setOnlyFollowedHosts(false);
+      setError(formatError(cause, 'Не удалось загрузить подписки Twitch.'));
+    } finally {
+      setLoadingFollows(false);
+    }
+  }
+
+  const visibleEvents = onlyFollowedHosts
+    ? publicEvents.filter((event) => event.host_twitch_id && followedHostIds.has(event.host_twitch_id))
+    : publicEvents;
+
   return (
     <main className="landing landing-directory">
       <header className="topbar">
@@ -46,7 +71,7 @@ function LandingPage() {
       </header>
       <section className="public-home-section">
         <div className="public-home-heading"><span className="eyebrow"><span className="live-dot" /> ОТКРЫТЫЙ НАБОР</span><h1>Публичные<br /><span>бинго.</span></h1><p>Игры, в которые можно зайти прямо сейчас.</p></div>
-        {!user ? <div className="public-home-empty"><p>Войди через Twitch, чтобы увидеть открытые бинго и присоединиться.</p><Link className="button button-primary" to="/login">Войти через Twitch <span aria-hidden="true">↗</span></Link></div> : loadingEvents ? <div className="loading-panel">Ищем открытые бинго<span className="loading-dots">•••</span></div> : error ? <div className="inline-error" role="alert">{error}</div> : publicEvents.length ? <div className="public-home-list">{publicEvents.map((event) => <Link className="public-home-card" to={`/e/${event.invite_token}`} key={event.id}><span className="public-home-card-mark">{event.emoji}</span><span className="public-home-card-main"><small>НАБОР ОТКРЫТ · {event.grid_size} × {event.grid_size}</small><strong>{event.title}</strong><span>Ведущий · {event.host_twitch_name || 'Twitch'}</span></span><span className="public-home-card-deadline">СТАРТ<br />{new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(event.signup_deadline))}</span><span className="event-card-arrow">↗</span></Link>)}</div> : <div className="public-home-empty"><p>Пока нет открытых публичных бинго. Загляни позже или создай своё.</p><Link className="button button-primary" to="/dashboard">Создать бинго <span aria-hidden="true">↗</span></Link></div>}
+        {!user ? <div className="public-home-empty"><p>Войди через Twitch, чтобы увидеть открытые бинго и присоединиться.</p><Link className="button button-primary" to="/login">Войти через Twitch <span aria-hidden="true">↗</span></Link></div> : loadingEvents ? <div className="loading-panel">Ищем открытые бинго<span className="loading-dots">•••</span></div> : <><label className="follow-filter"><input type="checkbox" checked={onlyFollowedHosts} disabled={loadingFollows} onChange={(event) => void toggleFollowFilter(event.target.checked)} /><span aria-hidden="true">✓</span><span>Только ведущие, на которых я подписан{loadingFollows ? ' · загружаем…' : ''}</span></label>{error && <div className="inline-error" role="alert">{error}</div>}{visibleEvents.length ? <div className="public-home-list">{visibleEvents.map((event) => <Link className="public-home-card" to={`/e/${event.invite_token}`} key={event.id}><span className="public-home-card-mark">{event.emoji}</span><span className="public-home-card-main"><small>НАБОР ОТКРЫТ · {event.grid_size} × {event.grid_size}</small><strong>{event.title}</strong><span>Ведущий · {event.host_twitch_name || 'Twitch'}</span></span><span className="public-home-card-deadline">СТАРТ<br />{new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(event.signup_deadline))}</span><span className="event-card-arrow">↗</span></Link>)}</div> : <div className="public-home-empty"><p>{onlyFollowedHosts ? 'Среди открытых бинго пока нет ведущих, на которых ты подписан.' : 'Пока нет открытых публичных бинго. Загляни позже или создай своё.'}</p>{!onlyFollowedHosts && <Link className="button button-primary" to="/dashboard">Создать бинго <span aria-hidden="true">↗</span></Link>}</div>}</>}
       </section>
       <footer className="site-footer"><Brand /><span>ПУБЛИЧНЫЕ БИНГО · TWITCH</span><span>© 2026</span></footer>
     </main>
@@ -104,6 +129,7 @@ function RoutedApp() {
         <Route path="/login" element={<AuthPage />} />
         <Route path="/auth/callback" element={<CallbackPage />} />
         <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
+        <Route path="/create" element={<RequireAuth><CreateEventPage /></RequireAuth>} />
         <Route path="/host/:eventId" element={<RequireAuth><HostEventPage /></RequireAuth>} />
         <Route path="/e/:inviteToken" element={<RequireAuth><JoinEventPage /></RequireAuth>} />
         <Route path="/play/:eventId" element={<RequireAuth><ParticipantEventPage /></RequireAuth>} />

@@ -60,6 +60,8 @@ where twitch_username = 'nickname';
 
 Workflow `.github/workflows/deploy-pages.yml` собирает проект и публикует `dist/` при push в `main`. Он использует официальную схему GitHub Pages с `configure-pages`, `upload-pages-artifact` и `deploy-pages`.
 
+Для фильтра бинго по Twitch-подпискам задай repository variable `VITE_TWITCH_CLIENT_ID` (Client ID публичный; Client Secret во фронтенд не добавляй). При входе приложение запрашивает read-only scope `user:read:follows`.
+
 1. Добавь в Settings → Secrets and variables → Actions два repository secrets: `VITE_SUPABASE_URL` и `VITE_SUPABASE_PUBLISHABLE_KEY`.
 2. В Settings → Pages установи Build and deployment source в **GitHub Actions**.
 3. В Supabase добавь production URL сайта в Authentication → URL Configuration. Для project pages адрес обычно выглядит как `https://<owner>.github.io/<repo>/`.

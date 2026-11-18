@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { joinEvent } from '../cards/cardApi';
 import ActiveEventPanel from './ActiveEventPanel';
 import CreateEventForm, { toLocalInputValue } from './CreateEventForm';
+import CardDraftPreview from './CardDraftPreview';
 import Leaderboard from './Leaderboard';
 import { finalizeEvent, getEvent, getEventModerators, getEventParticipants, getEventResults, getEventTriggers, setEventModerator, startEvent, updateEventSetup, type EventResult } from './eventApi';
 import type { EventDraft } from './eventValidation';
@@ -23,6 +24,7 @@ export default function HostEventPage() {
   const [triggers, setTriggers] = useState<EventTriggerRow[]>([]);
   const [participants, setParticipants] = useState<ParticipantRow[]>([]);
   const [moderatorIds, setModeratorIds] = useState<string[]>([]);
+  const [draftPreview, setDraftPreview] = useState<EventDraft | null>(null);
   const [results, setResults] = useState<EventResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -179,9 +181,9 @@ export default function HostEventPage() {
         <div className="invite-copy"><code>{inviteUrl}</code><button className="button button-outline button-small" type="button" onClick={() => void copyInvite()} aria-label={copyDone ? 'Ссылка скопирована' : 'Скопировать приглашение'}>{copyDone ? 'Скопировано ✓' : 'Копировать ↗'}</button></div>
       </section>
 
-      <div className="host-content-grid">
+      <div className={`host-content-grid ${phase === 'signup' && isHost ? 'host-content-grid-signup' : ''}`}>
         {phase === 'signup' && isHost ? (
-          <section className="host-setup-panel"><CreateEventForm key={`${event.updated_at}-${triggers.length}`} initial={initial} allowGridSize={false} submitLabel="Сохранить изменения" onSubmit={save} /><p className="field-hint setup-warning">Если убрать триггер, он пропадёт из карточек игроков. До старта они смогут выбрать замену.</p></section>
+          <section className="host-setup-panel"><div className="host-edit-layout"><CreateEventForm key={`${event.updated_at}-${triggers.length}`} initial={initial} allowGridSize={false} submitLabel="Сохранить изменения" onSubmit={save} onDraftChange={setDraftPreview} />{draftPreview && <CardDraftPreview gridSize={draftPreview.gridSize} triggers={draftPreview.triggers} />}</div><p className="field-hint setup-warning">Если убрать триггер, он пропадёт из карточек игроков. До старта они смогут выбрать замену.</p></section>
         ) : phase === 'active' && canModerate ? (
           <ActiveEventPanel eventId={event.id} triggers={triggers} onRefresh={refresh} canEdit={canModerate} />
         ) : (

@@ -11,6 +11,7 @@ export type EventRow = {
   invite_token: string;
   host_id: string;
   host_twitch_name: string | null;
+  host_twitch_id: string | null;
   title: string;
   emoji: string;
   is_public: boolean;
@@ -82,6 +83,7 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      get_my_twitch_id: { Args: Record<string, never>; Returns: string | null };
       create_test_event_2x2: { Args: { p_title: string; p_signup_deadline: string; p_event_emoji: string; p_trigger_labels: string[]; p_trigger_emojis: string[] }; Returns: Json };
       set_event_public: { Args: { target_event_id: string; public_value: boolean }; Returns: boolean };
       set_event_moderator: { Args: { target_event_id: string; target_user_id: string; moderator_value: boolean }; Returns: boolean };
