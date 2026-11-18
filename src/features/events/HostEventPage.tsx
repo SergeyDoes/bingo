@@ -206,7 +206,7 @@ export default function HostEventPage() {
       {notice && <div className="inline-notice" role="status">{notice}<button className="quiet-button" onClick={() => setNotice('')} aria-label="Скрыть сообщение">×</button></div>}
 
       <section className="invite-panel">
-        <div><span className="eyebrow">ПРИГЛАСИ ИГРОКОВ</span><strong>Одна ссылка — и все в игре.</strong><p>{phase === 'signup' ? `Регистрация и выбор карточек до ${formatDate(event.signup_deadline)}.` : 'Новые игроки уже не присоединятся. Карточки участников заблокированы.'}</p></div>
+        <div><span className="eyebrow">ПРИГЛАСИТЕЛЬНАЯ ССЫЛКА</span><strong>Ссылка на событие</strong><p>{phase === 'signup' ? `Выбор карточек открыт до ${formatDate(event.signup_deadline)}.` : 'Набор закрыт. Карточки участников заблокированы.'}</p></div>
         <div className="invite-copy"><code>{inviteUrl}</code><button className="button button-outline button-small" type="button" onClick={() => void copyInvite()} aria-label={copyDone ? 'Ссылка скопирована' : 'Скопировать приглашение'}>{copyDone ? 'Скопировано ✓' : 'Копировать ↗'}</button></div>
       </section>
 

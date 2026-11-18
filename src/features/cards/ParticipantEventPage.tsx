@@ -127,7 +127,7 @@ export default function ParticipantEventPage() {
       {locked && complete && phase === 'active' && <div className="participant-note"><span>✳</span><p>Карточка заблокирована. Когда ведущий отметит триггер, клетка подсветится здесь.</p></div>}
 
       <section className="participant-board-section">
-        <div className="participant-board-heading"><div><span className="eyebrow">ТВОЯ КАРТОЧКА</span><h2>{locked ? 'Игра началась' : 'Собери своё поле'}</h2></div>{!locked && <span className="progress-pill">{draftCells.filter(Boolean).length} / {event.grid_size * event.grid_size}</span>}</div>
+        <div className="participant-board-heading"><div><span className="eyebrow">ТВОЯ КАРТОЧКА</span><h2>{locked ? 'Игра началась' : 'Выбери триггеры'}</h2></div>{!locked && <span className="progress-pill">{draftCells.filter(Boolean).length} / {event.grid_size * event.grid_size}</span>}</div>
         <CardBuilder gridSize={event.grid_size} triggers={triggers} cells={locked ? toGridCells(event.grid_size, savedCells) : draftCells} locked={locked} saving={saving} onChange={setDraftCells} onSave={() => void persistCard()} />
         {!locked && dirty && <p className="unsaved-hint">Есть несохранённые изменения — нажми кнопку под списком триггеров.</p>}
       </section>

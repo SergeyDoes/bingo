@@ -185,7 +185,7 @@ export default function DashboardPage() {
           )}
         </section>
       </div>
-      <footer className="workspace-footer"><span>БИНГО · СОБЫТИЯ, КОТОРЫЕ СТОИТ ЖДАТЬ</span><Link to="/">НА ГЛАВНУЮ ↑</Link></footer>
+      <footer className="workspace-footer"><span>МОИ СОБЫТИЯ</span><Link to="/">НА ГЛАВНУЮ ↑</Link></footer>
     </main>
   );
 }

@@ -95,7 +95,7 @@ export default function CreateEventForm({ initial, mode = initial ? 'edit' : 'cr
   return (
     <form className="event-form" onSubmit={submit}>
       <div className="form-heading">
-        <div><span className="eyebrow">СОБЕРИ СВОЁ ПОЛЕ</span><h2>{mode === 'edit' ? 'Настройки события' : 'Новое бинго'}</h2></div>
+        <div><span className="eyebrow">ПАРАМЕТРЫ СОБЫТИЯ</span><h2>{mode === 'edit' ? 'Настройки события' : 'Новое бинго'}</h2></div>
         <span className="form-spark" aria-hidden="true">{eventEmoji}</span>
       </div>
 

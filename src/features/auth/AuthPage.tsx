@@ -29,7 +29,7 @@ export default function AuthPage() {
       <header className="topbar"><Link className="brand" to="/" aria-label="Бинго — на главную"><span className="brand-mark">Б</span><span>БИНГО<span className="brand-period">.</span></span></Link></header>
       <section className="placeholder-card login-card">
         <span className="eyebrow">ВХОД ЧЕРЕЗ TWITCH</span>
-        <h1>Твоя игра<br /><span>начинается здесь.</span></h1>
+        <h1>Войти<br /><span>в бинго.</span></h1>
         <p>Войди через Twitch, чтобы присоединиться к бинго или создать своё событие.</p>
         {!configured && <p className="setup-callout">Сначала подключи Supabase в настройках проекта.</p>}
         {error && <p className="form-error" role="alert">{error}</p>}
