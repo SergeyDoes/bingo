@@ -6,6 +6,7 @@ import { getEventPhase } from '../../lib/phase';
 import { useAuth } from '../auth/AuthProvider';
 import CreateEventForm from './CreateEventForm';
 import { createEvent, listHostEvents } from './eventApi';
+import { requireSupabase } from '../../lib/supabase';
 
 function eventStatus(event: EventRow, now: Date): { label: string; className: string } {
   const phase = getEventPhase(event, now);
@@ -25,6 +26,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [now, setNow] = useState(() => new Date());
+  const [canCreateEvents, setCanCreateEvents] = useState<boolean | null>(null);
 
   const refresh = useCallback(async () => {
     if (!user) return;
@@ -40,6 +42,15 @@ export default function DashboardPage() {
   }, [user]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    let active = true;
+    void requireSupabase().rpc('is_bingo_host_authorized').then(({ data, error }) => {
+      if (!active) return;
+      if (error) { setError(formatError(error, 'Не удалось проверить права ведущего.')); setCanCreateEvents(false); }
+      else setCanCreateEvents(data);
+    });
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(timer);
@@ -63,7 +74,7 @@ export default function DashboardPage() {
     <main className="workspace-page">
       <header className="workspace-topbar">
         <Link className="brand" to="/" aria-label="Бинго — на главную"><span className="brand-mark">Б</span><span>БИНГО<span className="brand-period">.</span></span></Link>
-        <div className="workspace-user"><span>{user?.email}</span><button className="quiet-button" onClick={exit}>Выйти ↗</button></div>
+        <div className="workspace-user"><span>{String(user?.user_metadata?.preferred_username || user?.user_metadata?.name || 'Twitch')}</span><button className="quiet-button" onClick={exit}>Выйти ↗</button></div>
       </header>
       <section className="workspace-intro">
         <span className="eyebrow"><span className="live-dot" /> ТВОЯ ИГРОВАЯ</span>
@@ -91,7 +102,7 @@ export default function DashboardPage() {
             </div>
           )}
         </section>
-        <aside className="create-panel"><CreateEventForm submitLabel="Создать событие" onSubmit={onCreate} /></aside>
+        <aside className="create-panel">{canCreateEvents === true ? <CreateEventForm submitLabel="Создать событие" onSubmit={onCreate} /> : <div className="host-access-note"><span className="eyebrow">ДОСТУП ВЕДУЩЕГО</span><h2>{canCreateEvents === null ? "Проверяем доступ…" : "Создание по приглашению"}</h2><p>{canCreateEvents === null ? "Загружаем разрешения аккаунта Twitch." : "Войти и играть могут все. Чтобы создавать события, попроси владельца сервиса добавить твой Twitch ID в список ведущих."}</p></div>}</aside>
       </div>
       <footer className="workspace-footer"><span>БИНГО · СОБЫТИЯ, КОТОРЫЕ СТОИТ ЖДАТЬ</span><Link to="/">НА ГЛАВНУЮ ↑</Link></footer>
     </main>

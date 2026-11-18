@@ -30,12 +30,30 @@ npm run dev
 1. Создай Supabase-проект.
 2. В SQL Editor выполни SQL-файлы из `supabase/migrations/` по порядку: `202611020001_bingo_events.sql`, `202611020002_host_participation.sql`, `202611020003_bingo_emojis.sql`, `202611020004_expand_emoji_palette.sql`.
 3. В Settings → API Keys скопируй Project URL и **publishable key** в `.env.local`.
-4. В Authentication → URL Configuration укажи локальный адрес и адрес опубликованного сайта как разрешённые redirect URLs. Для magic link приложение возвращает участника на корень сайта; Supabase разрешает только адреса из этого списка. См. [настройку redirect URLs](https://supabase.com/docs/guides/auth/auth-email-passwordless).
+4. В Authentication → URL Configuration добавь адрес GitHub Pages как разрешённый Redirect URL (обычно `https://<owner>.github.io/<repo>/`).
+5. В Authentication → Sign In / Providers включи Twitch и добавь Client ID и Client Secret. В Twitch Developer Console OAuth Redirect URL должен быть `https://<project-ref>.supabase.co/auth/v1/callback`.
 
 Ведущий тоже может играть: до старта события он присоединяется со своим игровым именем и собирает отдельную карточку. После старта присоединиться с новой карточкой уже нельзя.
 
 Publishable key предназначен для браузера и попадёт в собранный JavaScript. Доступ к данным ограничивается RLS. Никогда не добавляй в `.env.local`, исходники или GitHub Actions **secret key** (`sb_secret_...`) или устаревший `service_role` key.
 
+## Права ведущих
+
+Войти и играть могут все. Создавать события могут аккаунты из закрытого allowlist. Для предварительного аппрува Twitch-ника выполни в Supabase SQL Editor:
+
+```sql
+insert into public.bingo_host_username_allowlist (twitch_username)
+values ('nickname');
+```
+
+Ник указывается без `@`, в нижнем регистре. Удалить аппрув можно так:
+
+```sql
+delete from public.bingo_host_username_allowlist
+where twitch_username = 'nickname';
+```
+
+Числовой Twitch ID тоже поддерживается через `public.bingo_host_allowlist`. Обе таблицы закрыты от браузера, а право проверяется непосредственно при создании события.
 ## GitHub Pages
 
 Workflow `.github/workflows/deploy-pages.yml` собирает проект и публикует `dist/` при push в `main`. Он использует официальную схему GitHub Pages с `configure-pages`, `upload-pages-artifact` и `deploy-pages`.

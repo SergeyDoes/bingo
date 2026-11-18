@@ -2,16 +2,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { User } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 
-const redirectFromMagicLink = new URLSearchParams(window.location.search).get('next');
-if (redirectFromMagicLink?.startsWith('/') && !redirectFromMagicLink.startsWith('//')) {
-  window.sessionStorage.setItem('bingo:return-to', redirectFromMagicLink);
-}
-
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
   configured: boolean;
-  signInWithEmail: (email: string, redirectTo: string) => Promise<void>;
+  signInWithTwitch: (redirectTo: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -22,35 +17,27 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [loading, setLoading] = useState(isSupabaseConfigured);
 
   useEffect(() => {
-    if (!supabase) {
-      setLoading(false);
-      return;
-    }
-
+    if (!supabase) { setLoading(false); return; }
     let mounted = true;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
-
     void supabase.auth.getSession().then(({ data, error }) => {
       if (!mounted) return;
       if (error) console.error('Could not read the saved session:', error.message);
       setUser(data.session?.user ?? null);
       setLoading(false);
     });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
 
-  const signInWithEmail = useCallback(async (email: string, redirectTo: string) => {
-    if (!supabase) throw new Error('Сначала подключите Supabase в файле .env.local.');
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: redirectTo },
+  const signInWithTwitch = useCallback(async (redirectTo: string) => {
+    if (!supabase) throw new Error('Сначала подключите Supabase в настройках проекта.');
+    window.sessionStorage.setItem('bingo:return-to', new URL(redirectTo).searchParams.get('next') || '/dashboard');
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'twitch',
+      options: { redirectTo, scopes: 'user:read:email' },
     });
     if (error) throw error;
   }, []);
@@ -61,8 +48,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if (error) throw error;
   }, []);
 
-  const value = useMemo(() => ({ user, loading, configured: isSupabaseConfigured, signInWithEmail, signOut }), [user, loading, signInWithEmail, signOut]);
-
+  const value = useMemo(() => ({ user, loading, configured: isSupabaseConfigured, signInWithTwitch, signOut }), [user, loading, signInWithTwitch, signOut]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

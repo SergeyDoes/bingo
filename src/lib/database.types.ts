@@ -74,6 +74,7 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      is_bingo_host_authorized: { Args: Record<string, never>; Returns: boolean };
       create_event: {
         Args: { p_title: string; p_grid_size: number; p_signup_deadline: string; p_trigger_labels: string[] };
         Returns: Json;
