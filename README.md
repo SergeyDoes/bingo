@@ -28,7 +28,7 @@ npm run dev
 ## Supabase
 
 1. Создай Supabase-проект.
-2. В SQL Editor выполни SQL-файлы из `supabase/migrations/` по порядку: `202611020001_bingo_events.sql`, `202611020002_host_participation.sql`, `202611020003_bingo_emojis.sql`, `202611020004_expand_emoji_palette.sql`.
+2. В SQL Editor выполни SQL-файлы из `supabase/migrations/` по порядку, включая `202611180001_twitch_host_allowlist.sql` — `202611180005_test_card_2x2.sql`.
 3. В Settings → API Keys скопируй Project URL и **publishable key** в `.env.local`.
 4. В Authentication → URL Configuration добавь адрес GitHub Pages как разрешённый Redirect URL (обычно `https://<owner>.github.io/<repo>/`).
 5. В Authentication → Sign In / Providers включи Twitch и добавь Client ID и Client Secret. В Twitch Developer Console OAuth Redirect URL должен быть `https://<project-ref>.supabase.co/auth/v1/callback`.
@@ -54,6 +54,8 @@ where twitch_username = 'nickname';
 ```
 
 Числовой Twitch ID тоже поддерживается через `public.bingo_host_allowlist`. Обе таблицы закрыты от браузера, а право проверяется непосредственно при создании события.
+
+Ведущий может отметить событие публичным при создании или до старта. Пока набор открыт, оно будет видно всем вошедшим игрокам. Ведущий также может назначать модераторами участников; модераторы во время игры могут менять только отметки триггеров.
 ## GitHub Pages
 
 Workflow `.github/workflows/deploy-pages.yml` собирает проект и публикует `dist/` при push в `main`. Он использует официальную схему GitHub Pages с `configure-pages`, `upload-pages-artifact` и `deploy-pages`.

@@ -25,6 +25,7 @@ export default function CreateEventForm({ initial, allowGridSize = true, submitL
   const [eventEmoji, setEventEmoji] = useState(initial?.emoji ?? DEFAULT_EVENT_EMOJI);
   const [gridSize, setGridSize] = useState(initial?.gridSize ?? 3);
   const [deadline, setDeadline] = useState(initial?.signupDeadline ?? toLocalInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000)));
+  const [isPublic, setIsPublic] = useState(initial?.isPublic ?? false);
   const [triggers, setTriggers] = useState<TriggerDraft[]>(initial?.triggers?.length ? initial.triggers.map((trigger) => ({ ...trigger })) : emptyTriggers());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -42,6 +43,7 @@ export default function CreateEventForm({ initial, allowGridSize = true, submitL
       emoji: eventEmoji,
       gridSize,
       signupDeadline: deadline,
+      isPublic,
       triggers: triggers.filter((trigger) => trigger.label.trim()).map((trigger) => ({ ...trigger, label: trigger.label.trim() })),
     };
     const validationError = validateEventDraft(draft);
@@ -83,7 +85,7 @@ export default function CreateEventForm({ initial, allowGridSize = true, submitL
         <div className="form-field">
           <label className="field-label" htmlFor="event-size">Карточка</label>
           <select id="event-size" className="text-input" value={gridSize} onChange={(event) => setGridSize(Number(event.target.value))} disabled={!allowGridSize}>
-            {[3, 4, 5, 6, 7].map((size) => <option value={size} key={size}>{size} × {size}</option>)}
+            {[2, 3, 4, 5, 6, 7].map((size) => <option value={size} key={size}>{size} × {size}{size === 2 ? ' · тест' : ''}</option>)}
           </select>
           {!allowGridSize && <small className="field-hint">Размер карточки фиксируется при создании.</small>}
         </div>
@@ -93,6 +95,12 @@ export default function CreateEventForm({ initial, allowGridSize = true, submitL
           <small className="field-hint">По дедлайну карточки заблокируются, и игра начнётся.</small>
         </div>
       </div>
+
+      <label className="public-event-toggle">
+        <input type="checkbox" checked={isPublic} onChange={(event) => setIsPublic(event.target.checked)} />
+        <span className="public-event-check" aria-hidden="true">✓</span>
+        <span><strong>Публичное событие</strong><small>Показывать игрокам в общем списке, пока открыт набор.</small></span>
+      </label>
 
       <div className="trigger-field-heading"><span className="field-label">Триггеры</span><span>{filledCount} / {minimum}</span></div>
       <div className="trigger-editor-list">

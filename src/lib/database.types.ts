@@ -12,6 +12,7 @@ export type EventRow = {
   host_id: string;
   title: string;
   emoji: string;
+  is_public: boolean;
   grid_size: number;
   signup_deadline: string;
   manual_started_at: string | null;
@@ -53,6 +54,12 @@ export interface Database {
         Update: Partial<Pick<EventRow, 'title' | 'signup_deadline'>>;
         Relationships: [];
       };
+      event_moderators: {
+        Row: { event_id: string; user_id: string; assigned_at: string };
+        Insert: { event_id: string; user_id: string; assigned_at?: string };
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       event_triggers: {
         Row: EventTriggerRow;
         Insert: Pick<EventTriggerRow, 'event_id' | 'label'> & Partial<Pick<EventTriggerRow, 'id' | 'emoji' | 'occurred' | 'created_at'>>;
@@ -74,6 +81,10 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      create_test_event_2x2: { Args: { p_title: string; p_signup_deadline: string; p_event_emoji: string; p_trigger_labels: string[]; p_trigger_emojis: string[] }; Returns: Json };
+      set_event_public: { Args: { target_event_id: string; public_value: boolean }; Returns: boolean };
+      set_event_moderator: { Args: { target_event_id: string; target_user_id: string; moderator_value: boolean }; Returns: boolean };
+      is_event_moderator: { Args: { target_event_id: string }; Returns: boolean };
       is_bingo_host_authorized: { Args: Record<string, never>; Returns: boolean };
       create_event: {
         Args: { p_title: string; p_grid_size: number; p_signup_deadline: string; p_trigger_labels: string[] };

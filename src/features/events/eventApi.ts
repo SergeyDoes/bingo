@@ -23,16 +23,55 @@ export async function listHostEvents(hostId: string): Promise<EventRow[]> {
   return data ?? [];
 }
 
+export async function listPublicEvents(): Promise<EventRow[]> {
+  const { data, error } = await requireSupabase()
+    .from('events')
+    .select('*')
+    .eq('is_public', true)
+    .is('manual_started_at', null)
+    .is('finalized_at', null)
+    .gt('signup_deadline', new Date().toISOString())
+    .order('signup_deadline', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getEventModerators(eventId: string): Promise<string[]> {
+  const { data, error } = await requireSupabase().from('event_moderators').select('user_id').eq('event_id', eventId);
+  if (error) throw error;
+  return (data ?? []).map((row) => row.user_id);
+}
+
+export async function setEventModerator(eventId: string, userId: string, moderator: boolean): Promise<void> {
+  const { error } = await requireSupabase().rpc('set_event_moderator', {
+    target_event_id: eventId,
+    target_user_id: userId,
+    moderator_value: moderator,
+  });
+  if (error) throw error;
+}
+
 export async function createEvent(input: EventDraft): Promise<CreatedEvent> {
-  const { data, error } = await requireSupabase().rpc('create_event_with_emoji_palette', {
+  const client = requireSupabase();
+  const args = {
     p_title: input.title.trim(),
-    p_grid_size: input.gridSize,
     p_signup_deadline: new Date(input.signupDeadline).toISOString(),
     p_event_emoji: input.emoji,
     p_trigger_labels: input.triggers.map((trigger) => trigger.label.trim()),
     p_trigger_emojis: input.triggers.map((trigger) => trigger.emoji),
-  });
+  };
+  const { data, error } = input.gridSize === 2
+    ? await client.rpc('create_test_event_2x2', args)
+    : await client.rpc('create_event_with_emoji_palette', { ...args, p_grid_size: input.gridSize });
   if (error) throw error;
+  if (input.isPublic) {
+    const result = data as Json;
+    if (!result || typeof result !== 'object' || Array.isArray(result) || typeof result.event_id !== 'string') {
+      throw new Error('Событие создано, но не удалось включить публичность.');
+    }
+    const { error: visibilityError } = await requireSupabase().rpc('set_event_public', { target_event_id: result.event_id, public_value: true });
+    if (visibilityError) throw visibilityError;
+  }
   const result = data as Json;
   if (!result || typeof result !== 'object' || Array.isArray(result)) {
     throw new Error('Событие создано, но сервер не вернул ссылку для ведущего.');
@@ -82,6 +121,8 @@ export async function updateEventSetup(eventId: string, input: EventDraft): Prom
     p_trigger_emojis: input.triggers.map((trigger) => trigger.emoji),
   });
   if (error) throw error;
+  const { error: visibilityError } = await requireSupabase().rpc('set_event_public', { target_event_id: eventId, public_value: input.isPublic });
+  if (visibilityError) throw visibilityError;
 }
 
 export async function startEvent(eventId: string): Promise<void> {

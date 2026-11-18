@@ -8,7 +8,7 @@ import { joinEvent } from '../cards/cardApi';
 import ActiveEventPanel from './ActiveEventPanel';
 import CreateEventForm, { toLocalInputValue } from './CreateEventForm';
 import Leaderboard from './Leaderboard';
-import { finalizeEvent, getEvent, getEventParticipants, getEventResults, getEventTriggers, startEvent, updateEventSetup, type EventResult } from './eventApi';
+import { finalizeEvent, getEvent, getEventModerators, getEventParticipants, getEventResults, getEventTriggers, setEventModerator, startEvent, updateEventSetup, type EventResult } from './eventApi';
 import type { EventDraft } from './eventValidation';
 
 function formatDate(date: string): string {
@@ -22,6 +22,7 @@ export default function HostEventPage() {
   const [event, setEvent] = useState<EventRow | null>(null);
   const [triggers, setTriggers] = useState<EventTriggerRow[]>([]);
   const [participants, setParticipants] = useState<ParticipantRow[]>([]);
+  const [moderatorIds, setModeratorIds] = useState<string[]>([]);
   const [results, setResults] = useState<EventResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -39,11 +40,12 @@ export default function HostEventPage() {
     setError('');
     try {
       const eventData = await getEvent(eventId);
-      const [triggerData, participantData] = await Promise.all([getEventTriggers(eventId), getEventParticipants(eventId)]);
+      const [triggerData, participantData, moderatorData] = await Promise.all([getEventTriggers(eventId), getEventParticipants(eventId), getEventModerators(eventId)]);
       const resultData = getEventPhase(eventData) === 'finalized' ? await getEventResults(eventId) : [];
       setEvent(eventData);
       setTriggers(triggerData);
       setParticipants(participantData);
+      setModeratorIds(moderatorData);
       setResults(resultData);
     } catch (cause) {
       setError(formatError(cause, 'Не удалось загрузить это событие.'));
@@ -134,8 +136,22 @@ export default function HostEventPage() {
     emoji: event.emoji,
     gridSize: event.grid_size,
     signupDeadline: toLocalInputValue(new Date(event.signup_deadline)),
+    isPublic: event.is_public,
     triggers: triggers.map((trigger) => ({ label: trigger.label, emoji: trigger.emoji })),
   };
+  const isHost = event.host_id === user?.id;
+  const canModerate = isHost || Boolean(user && moderatorIds.includes(user.id));
+
+  async function toggleModerator(participant: ParticipantRow) {
+    if (!event) return;
+    const enabled = !moderatorIds.includes(participant.user_id);
+    try {
+      await setEventModerator(event.id, participant.user_id, enabled);
+      setModeratorIds((current) => enabled ? [...current, participant.user_id] : current.filter((id) => id !== participant.user_id));
+    } catch (cause) {
+      setError(formatError(cause, 'Не удалось изменить роль модератора.'));
+    }
+  }
 
   return (
     <main className="workspace-page">
@@ -152,9 +168,9 @@ export default function HostEventPage() {
         <div className="event-page-actions">
           {isHostParticipant && <Link className="button button-outline" to={`/play/${event.id}`}>Моя карточка <span aria-hidden="true">↗</span></Link>}
           {phase === 'signup' && !isHostParticipant && <button className="button button-outline" type="button" onClick={() => setShowPlayerJoin((visible) => !visible)}>{showPlayerJoin ? 'Не сейчас' : 'Играть самому'} <span aria-hidden="true">↗</span></button>}
-          {phase === 'signup' && <button className="button button-primary" onClick={() => void startEarly()} disabled={starting}>{starting ? 'Запускаем…' : 'Стартовать сейчас'} <span aria-hidden="true">↗</span></button>}
-          {phase === 'active' && <button className="button button-outline" onClick={() => void finishEvent()} disabled={finalizing}>{finalizing ? 'Фиксируем…' : 'Завершить и подвести итоги'} <span aria-hidden="true">✓</span></button>}
-          {phase === 'signup' && <small>Карточки заблокируются сразу</small>}
+          {phase === 'signup' && isHost && <button className="button button-primary" onClick={() => void startEarly()} disabled={starting}>{starting ? 'Запускаем…' : 'Стартовать сейчас'} <span aria-hidden="true">↗</span></button>}
+          {phase === 'active' && isHost && <button className="button button-outline" onClick={() => void finishEvent()} disabled={finalizing}>{finalizing ? 'Фиксируем…' : 'Завершить и подвести итоги'} <span aria-hidden="true">✓</span></button>}
+          {phase === 'signup' && isHost && <small>Карточки заблокируются сразу</small>}
         </div>
       </div>
 
@@ -172,14 +188,14 @@ export default function HostEventPage() {
       </section>
 
       <div className="host-content-grid">
-        {phase === 'signup' ? (
+        {phase === 'signup' && isHost ? (
           <section className="host-setup-panel"><CreateEventForm key={`${event.updated_at}-${triggers.length}`} initial={initial} allowGridSize={false} submitLabel="Сохранить изменения" onSubmit={save} /><p className="field-hint setup-warning">Если убрать триггер, он пропадёт из карточек игроков. До старта они смогут выбрать замену.</p></section>
-        ) : phase === 'active' ? (
-          <ActiveEventPanel eventId={event.id} triggers={triggers} onRefresh={refresh} />
+        ) : phase === 'active' && canModerate ? (
+          <ActiveEventPanel eventId={event.id} triggers={triggers} onRefresh={refresh} canEdit={canModerate} />
         ) : (
           <section className="host-trigger-panel"><div className="panel-heading"><div><span className="eyebrow">ТРИГГЕРЫ СОБЫТИЯ</span><h2>Что уже произошло?</h2></div><span className="count-badge">{triggers.filter((trigger) => trigger.occurred).length}/{triggers.length}</span></div><div className="trigger-status-list">{triggers.map((trigger) => <div className={`trigger-status-row ${trigger.occurred ? 'trigger-done' : ''}`} key={trigger.id}><span className="trigger-check">{trigger.occurred ? '✓' : '·'}</span><span className="trigger-status-emoji" aria-hidden="true">{trigger.emoji}</span><span>{trigger.label}</span></div>)}</div><p className="field-hint">Отметки ведущего появятся на карточках участников.</p></section>
         )}
-        <aside className="participant-panel"><div className="panel-heading"><div><span className="eyebrow">ЗА СТОЛОМ</span><h2>Игроки</h2></div><span className="count-badge">{participants.length.toString().padStart(2, '0')}</span></div>{participants.length ? <div className="participant-list">{participants.map((participant, index) => <div className="participant-row" key={participant.id}><span className="participant-avatar">{participant.display_name.trim().slice(0, 1).toLocaleUpperCase('ru-RU')}</span><span>{participant.display_name}</span><small>{String(index + 1).padStart(2, '0')}</small></div>)}</div> : <div className="participant-empty">Пока никого нет. Поделись ссылкой, чтобы открыть набор.</div>}</aside>
+        <aside className="participant-panel"><div className="panel-heading"><div><span className="eyebrow">ЗА СТОЛОМ</span><h2>Игроки</h2></div><span className="count-badge">{participants.length.toString().padStart(2, '0')}</span></div>{participants.length ? <div className="participant-list">{participants.map((participant, index) => { const isModerator = moderatorIds.includes(participant.user_id); return <div className="participant-row" key={participant.id}><span className="participant-avatar">{participant.display_name.trim().slice(0, 1).toLocaleUpperCase('ru-RU')}</span><span>{participant.display_name}{isModerator && <small className="moderator-badge">МОДЕРАТОР</small>}</span>{isHost ? <button className="moderator-toggle" type="button" onClick={() => void toggleModerator(participant)} aria-pressed={isModerator}>{isModerator ? 'Снять' : 'Назначить'}</button> : <small>{String(index + 1).padStart(2, '0')}</small>}</div>; })}</div> : <div className="participant-empty">Пока никого нет. Поделись ссылкой, чтобы открыть набор.</div>}</aside>
       </div>
 
       {phase === 'finalized' && <section className="leaderboard-section"><div className="participant-board-heading"><div><span className="eyebrow">ФИНАЛЬНЫЕ РЕЗУЛЬТАТЫ</span><h2>Таблица лидеров</h2></div><span className="count-badge">{results.length.toString().padStart(2, '0')}</span></div><Leaderboard results={results} /></section>}

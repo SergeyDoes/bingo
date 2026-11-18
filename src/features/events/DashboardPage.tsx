@@ -5,7 +5,7 @@ import { formatError } from '../../lib/errors';
 import { getEventPhase } from '../../lib/phase';
 import { useAuth } from '../auth/AuthProvider';
 import CreateEventForm from './CreateEventForm';
-import { createEvent, listHostEvents } from './eventApi';
+import { createEvent, listHostEvents, listPublicEvents } from './eventApi';
 import { requireSupabase } from '../../lib/supabase';
 
 function eventStatus(event: EventRow, now: Date): { label: string; className: string } {
@@ -23,6 +23,7 @@ export default function DashboardPage() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [events, setEvents] = useState<EventRow[]>([]);
+  const [publicEvents, setPublicEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [now, setNow] = useState(() => new Date());
@@ -33,7 +34,9 @@ export default function DashboardPage() {
     setLoading(true);
     setError('');
     try {
-      setEvents(await listHostEvents(user.id));
+      const [hostRows, publicRows] = await Promise.all([listHostEvents(user.id), listPublicEvents()]);
+      setEvents(hostRows);
+      setPublicEvents(publicRows.filter((event) => event.host_id !== user.id));
     } catch (cause) {
       setError(formatError(cause, 'Не удалось загрузить события.'));
     } finally {
@@ -104,6 +107,10 @@ export default function DashboardPage() {
         </section>
         <aside className="create-panel">{canCreateEvents === true ? <CreateEventForm submitLabel="Создать событие" onSubmit={onCreate} /> : <div className="host-access-note"><span className="eyebrow">ДОСТУП ВЕДУЩЕГО</span><h2>{canCreateEvents === null ? "Проверяем доступ…" : "Создание по приглашению"}</h2><p>{canCreateEvents === null ? "Загружаем разрешения аккаунта Twitch." : "Войти и играть могут все. Чтобы создавать события, попроси владельца сервиса добавить твой Twitch ID в список ведущих."}</p></div>}</aside>
       </div>
+      <section className="public-events-section">
+        <div className="panel-heading"><div><span className="eyebrow">ОТКРЫТЫЙ НАБОР</span><h2>Публичные бинго</h2></div><span className="count-badge">{publicEvents.length.toString().padStart(2, '0')}</span></div>
+        {publicEvents.length ? <div className="event-list">{publicEvents.map((event) => <Link className="event-list-card public-event-card" to={`/e/${event.invite_token}`} key={event.id}><span className="event-card-accent" /><span className="event-status status-open"><i />Можно войти</span><strong className="event-card-title"><span aria-hidden="true">{event.emoji}</span>{event.title}</strong><span className="event-list-meta">{event.grid_size} × {event.grid_size} <i>·</i> Старт {formatDate(event.signup_deadline)}</span><span className="event-card-arrow">↗</span></Link>)}</div> : <div className="public-events-empty">Сейчас нет открытых публичных событий.</div>}
+      </section>
       <footer className="workspace-footer"><span>БИНГО · СОБЫТИЯ, КОТОРЫЕ СТОИТ ЖДАТЬ</span><Link to="/">НА ГЛАВНУЮ ↑</Link></footer>
     </main>
   );

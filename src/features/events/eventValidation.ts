@@ -10,6 +10,7 @@ export interface EventDraft {
   emoji: string;
   gridSize: number;
   signupDeadline: string;
+  isPublic: boolean;
   triggers: TriggerDraft[];
 }
 
@@ -20,8 +21,8 @@ export function validateEventDraft(draft: EventDraft, now = new Date()): string 
   if (!EVENT_EMOJI_OPTIONS.includes(draft.emoji as typeof EVENT_EMOJI_OPTIONS[number])) {
     return 'Выбери значок события из списка.';
   }
-  if (!Number.isInteger(draft.gridSize) || draft.gridSize < 3 || draft.gridSize > 7) {
-    return 'Размер карточки должен быть от 3 × 3 до 7 × 7.';
+  if (!Number.isInteger(draft.gridSize) || draft.gridSize < 2 || draft.gridSize > 7) {
+    return 'Размер карточки должен быть от 2 × 2 до 7 × 7.';
   }
 
   const deadline = new Date(draft.signupDeadline);
