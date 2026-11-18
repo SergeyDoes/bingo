@@ -1,11 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { EventRow } from '../../lib/database.types';
 import { formatError } from '../../lib/errors';
 import { getEventPhase } from '../../lib/phase';
 import { useAuth } from '../auth/AuthProvider';
-import { listHostEvents } from './eventApi';
+import { listHostEvents, listParticipantEvents, type ParticipantEvent } from './eventApi';
 import { requireSupabase } from '../../lib/supabase';
+
+type DashboardTab = 'created' | 'participating';
+type CreatedSort = 'created_at' | 'signup_deadline' | 'finalized_at';
+type ParticipatingSort = 'signup_deadline' | 'finalized_at' | 'card_updated_at';
 
 function eventStatus(event: EventRow, now: Date): { label: string; className: string } {
   const phase = getEventPhase(event, now);
@@ -14,14 +18,49 @@ function eventStatus(event: EventRow, now: Date): { label: string; className: st
   return { label: 'Набор игроков', className: 'status-open' };
 }
 
-function formatDate(date: string): string {
-  return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }).format(new Date(date));
+function formatDate(date: string | null): string {
+  if (!date) return '—';
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).format(new Date(date));
+}
+
+function startDate(event: EventRow): string {
+  return event.manual_started_at ?? event.signup_deadline;
+}
+
+function sortTimestamp(event: EventRow | ParticipantEvent, field: CreatedSort | ParticipatingSort): number | null {
+  let value: string | null = null;
+  if (field === 'created_at') value = event.created_at;
+  else if (field === 'signup_deadline') value = startDate(event);
+  else if (field === 'finalized_at') value = event.finalized_at;
+  else if ('card_updated_at' in event) value = event.card_updated_at;
+  return value ? new Date(value).getTime() : null;
+}
+
+function dateFields(event: EventRow | ParticipantEvent, tab: DashboardTab): Array<{ label: string; date: string | null; empty?: string }> {
+  if (tab === 'created') return [
+    { label: 'Создано', date: event.created_at },
+    { label: 'Старт', date: startDate(event) },
+    { label: 'Финиш', date: event.finalized_at },
+  ];
+  return [
+    { label: 'Старт', date: startDate(event) },
+    { label: 'Финиш', date: event.finalized_at },
+    { label: 'Карточка обновлена', date: 'card_updated_at' in event ? event.card_updated_at : null, empty: 'Нет отметки' },
+  ];
 }
 
 export default function DashboardPage() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [events, setEvents] = useState<EventRow[]>([]);
+  const [createdEvents, setCreatedEvents] = useState<EventRow[]>([]);
+  const [participatingEvents, setParticipatingEvents] = useState<ParticipantEvent[]>([]);
+  const [tab, setTab] = useState<DashboardTab>('created');
+  const [createdSort, setCreatedSort] = useState<CreatedSort>('created_at');
+  const [participatingSort, setParticipatingSort] = useState<ParticipatingSort>('signup_deadline');
+  const [createdAscending, setCreatedAscending] = useState(false);
+  const [participatingAscending, setParticipatingAscending] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [now, setNow] = useState(() => new Date());
@@ -32,8 +71,12 @@ export default function DashboardPage() {
     setLoading(true);
     setError('');
     try {
-      const hostRows = await listHostEvents(user.id);
-      setEvents(hostRows);
+      const [hostRows, participantRows] = await Promise.all([
+        listHostEvents(user.id),
+        listParticipantEvents(user.id),
+      ]);
+      setCreatedEvents(hostRows);
+      setParticipatingEvents(participantRows);
     } catch (cause) {
       setError(formatError(cause, 'Не удалось загрузить события.'));
     } finally {
@@ -56,6 +99,17 @@ export default function DashboardPage() {
     return () => window.clearInterval(timer);
   }, []);
 
+  const currentEvents = tab === 'created' ? createdEvents : participatingEvents;
+  const sortField = tab === 'created' ? createdSort : participatingSort;
+  const ascending = tab === 'created' ? createdAscending : participatingAscending;
+  const sortedEvents = useMemo(() => [...currentEvents].sort((left, right) => {
+    const leftTime = sortTimestamp(left, sortField);
+    const rightTime = sortTimestamp(right, sortField);
+    if (leftTime === null) return rightTime === null ? 0 : 1;
+    if (rightTime === null) return -1;
+    return (leftTime - rightTime) * (ascending ? 1 : -1);
+  }), [currentEvents, sortField, ascending]);
+
   async function exit() {
     try {
       await signOut();
@@ -64,6 +118,24 @@ export default function DashboardPage() {
       setError(formatError(cause));
     }
   }
+
+  function changeSort(value: string) {
+    if (tab === 'created') {
+      setCreatedSort(value as CreatedSort);
+      setCreatedAscending(value === 'signup_deadline');
+    } else {
+      setParticipatingSort(value as ParticipatingSort);
+      setParticipatingAscending(value === 'signup_deadline');
+    }
+  }
+
+  function toggleOrder() {
+    if (tab === 'created') setCreatedAscending((value) => !value);
+    else setParticipatingAscending((value) => !value);
+  }
+
+  const count = currentEvents.length;
+  const isEmpty = tab === 'created' ? 'Созданных тобой бинго пока нет.' : 'Ты пока не участвуешь ни в одном бинго.';
 
   return (
     <main className="workspace-page">
@@ -74,23 +146,38 @@ export default function DashboardPage() {
       <section className="workspace-intro">
         <span className="eyebrow"><span className="live-dot" /> МЕНЮ СОБЫТИЙ</span>
         <h1>Твои<br /><span>бинго.</span></h1>
-        <p>Выбери событие, чтобы управлять им, или создай новое.</p>
+        <p>Выбери событие, чтобы управлять им или продолжить игру.</p>
       </section>
       <div className="dashboard-grid dashboard-grid-single">
         <section className="dashboard-events">
-          <div className="panel-heading"><div><span className="eyebrow">СПИСОК</span><h2>Мои события</h2></div><div className="dashboard-menu-actions">{canCreateEvents && <Link className="button button-primary button-small" to="/create">Создать бинго ↗</Link>}<span className="count-badge">{events.length.toString().padStart(2, '0')}</span></div></div>
+          <div className="panel-heading"><div><span className="eyebrow">СПИСОК</span><h2>Мои бинго</h2></div><div className="dashboard-menu-actions">{canCreateEvents && <Link className="button button-primary button-small" to="/create">Создать бинго ↗</Link>}<span className="count-badge">{count.toString().padStart(2, '0')}</span></div></div>
+          <div className="dashboard-list-toolbar">
+            <div className="dashboard-tabs" role="tablist" aria-label="Мои бинго">
+              <button type="button" className={tab === 'created' ? 'dashboard-tab dashboard-tab-active' : 'dashboard-tab'} role="tab" aria-selected={tab === 'created'} onClick={() => setTab('created')}>Созданы мной <span>{createdEvents.length}</span></button>
+              <button type="button" className={tab === 'participating' ? 'dashboard-tab dashboard-tab-active' : 'dashboard-tab'} role="tab" aria-selected={tab === 'participating'} onClick={() => setTab('participating')}>Участвую <span>{participatingEvents.length}</span></button>
+            </div>
+            <div className="dashboard-sort">
+              <label htmlFor="dashboard-sort-field">Сортировать по</label>
+              <select id="dashboard-sort-field" className="text-input" value={sortField} onChange={(event) => changeSort(event.target.value)}>
+                {tab === 'created' ? <><option value="created_at">Дате создания</option><option value="signup_deadline">Дате старта</option><option value="finalized_at">Дате финиша</option></> : <><option value="signup_deadline">Дате старта</option><option value="finalized_at">Дате финиша</option><option value="card_updated_at">Обновлению карточки</option></>}
+              </select>
+              <button type="button" className="button button-outline button-small dashboard-sort-order" onClick={toggleOrder}>{ascending ? 'Сначала ранние ↑' : 'Сначала поздние ↓'}</button>
+            </div>
+          </div>
           {error && <div className="inline-error" role="alert">{error}<button className="quiet-button" onClick={() => void refresh()}>Повторить</button></div>}
-          {loading ? <div className="loading-panel">Загружаем события<span className="loading-dots">•••</span></div> : events.length === 0 ? (
-            <div className="empty-events"><span className="empty-glyph">▦</span><strong>Поле пока пустое.</strong><p>{canCreateEvents ? 'Создай первое бинго, и оно появится в этом списке.' : 'Когда тебя назначат ведущим, созданные тобой события появятся здесь.'}</p>{canCreateEvents && <Link className="button button-primary" to="/create">Создать первое бинго ↗</Link>}</div>
+          {loading ? <div className="loading-panel">Загружаем события<span className="loading-dots">•••</span></div> : sortedEvents.length === 0 ? (
+            <div className="empty-events"><span className="empty-glyph">▦</span><strong>Поле пока пустое.</strong><p>{tab === 'created' && canCreateEvents ? 'Создай первое бинго, и оно появится в этом списке.' : isEmpty}</p>{tab === 'created' && canCreateEvents ? <Link className="button button-primary" to="/create">Создать первое бинго ↗</Link> : tab === 'participating' ? <Link className="button button-outline" to="/">Посмотреть открытые бинго ↗</Link> : null}</div>
           ) : (
             <div className="event-list">
-              {events.map((event) => {
+              {sortedEvents.map((event) => {
                 const status = eventStatus(event, now);
-                return <Link className="event-list-card" to={`/host/${event.id}`} key={event.id}>
+                const eventDates = dateFields(event, tab);
+                return <Link className="event-list-card dashboard-event-card" to={tab === 'created' ? `/host/${event.id}` : `/play/${event.id}`} key={event.id}>
                   <span className="event-card-accent" />
                   <span className={`event-status ${status.className}`}><i />{status.label}</span>
                   <strong className="event-card-title"><span aria-hidden="true">{event.emoji}</span>{event.title}</strong>
-                  <span className="event-list-meta">{event.grid_size} × {event.grid_size} <i>·</i> {status.label === 'Набор игроков' ? `Старт ${formatDate(event.signup_deadline)}` : formatDate(event.created_at)}</span>
+                  <span className="dashboard-event-size">{event.grid_size} × {event.grid_size}</span>
+                  <span className="dashboard-event-dates">{eventDates.map((field) => <span className="dashboard-event-date" key={field.label}><small>{field.label}</small><time title={field.date ?? undefined}>{field.date ? formatDate(field.date) : field.empty ?? '—'}</time></span>)}</span>
                   <span className="event-card-arrow">↗</span>
                 </Link>;
               })}

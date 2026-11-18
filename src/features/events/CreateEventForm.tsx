@@ -6,6 +6,7 @@ import { validateEventDraft, type EventDraft, type TriggerDraft } from './eventV
 
 interface CreateEventFormProps {
   initial?: Partial<EventDraft>;
+  mode?: 'create' | 'edit';
   allowGridSize?: boolean;
   submitLabel: string;
   onSubmit: (draft: EventDraft) => Promise<void>;
@@ -21,7 +22,7 @@ function emptyTriggers(): TriggerDraft[] {
   return Array.from({ length: 9 }, () => ({ label: '', emoji: DEFAULT_TRIGGER_EMOJI }));
 }
 
-export default function CreateEventForm({ initial, allowGridSize = true, submitLabel, onSubmit, onDraftChange, onCancel }: CreateEventFormProps) {
+export default function CreateEventForm({ initial, mode = initial ? 'edit' : 'create', allowGridSize = true, submitLabel, onSubmit, onDraftChange, onCancel }: CreateEventFormProps) {
   const [title, setTitle] = useState(initial?.title ?? '');
   const [eventEmoji, setEventEmoji] = useState(initial?.emoji ?? DEFAULT_EVENT_EMOJI);
   const [gridSize, setGridSize] = useState(initial?.gridSize ?? 3);
@@ -30,8 +31,10 @@ export default function CreateEventForm({ initial, allowGridSize = true, submitL
   const [triggers, setTriggers] = useState<TriggerDraft[]>(initial?.triggers?.length ? initial.triggers.map((trigger) => ({ ...trigger })) : emptyTriggers());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [draggingTriggerIndex, setDraggingTriggerIndex] = useState<number | null>(null);
   const minimum = Math.max(5, gridSize * gridSize);
   const filledCount = triggers.filter((trigger) => trigger.label.trim()).length;
+  const [deadlineDate, deadlineTime = ''] = deadline.split('T');
 
   useEffect(() => {
     onDraftChange?.({
@@ -46,6 +49,20 @@ export default function CreateEventForm({ initial, allowGridSize = true, submitL
 
   function updateTrigger(index: number, changes: Partial<TriggerDraft>) {
     setTriggers((current) => current.map((trigger, triggerIndex) => triggerIndex === index ? { ...trigger, ...changes } : trigger));
+  }
+
+  function updateDeadline(date: string, time: string) {
+    setDeadline(`${date}T${time}`);
+  }
+
+  function moveTrigger(from: number, to: number) {
+    if (from === to || from < 0 || to < 0 || from >= triggers.length || to >= triggers.length) return;
+    setTriggers((current) => {
+      const next = [...current];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -78,7 +95,7 @@ export default function CreateEventForm({ initial, allowGridSize = true, submitL
   return (
     <form className="event-form" onSubmit={submit}>
       <div className="form-heading">
-        <div><span className="eyebrow">СОБЕРИ СВОЁ ПОЛЕ</span><h2>{initial ? 'Настройки события' : 'Новое бинго'}</h2></div>
+        <div><span className="eyebrow">СОБЕРИ СВОЁ ПОЛЕ</span><h2>{mode === 'edit' ? 'Настройки события' : 'Новое бинго'}</h2></div>
         <span className="form-spark" aria-hidden="true">{eventEmoji}</span>
       </div>
 
@@ -102,9 +119,12 @@ export default function CreateEventForm({ initial, allowGridSize = true, submitL
           {!allowGridSize && <small className="field-hint">Размер карточки фиксируется при создании.</small>}
         </div>
         <div className="form-field">
-          <label className="field-label" htmlFor="event-deadline">Дедлайн и старт</label>
-          <input id="event-deadline" className="text-input" type="datetime-local" value={deadline} onChange={(event) => setDeadline(event.target.value)} required />
-          <small className="field-hint">По дедлайну карточки заблокируются, и игра начнётся.</small>
+          <span className="field-label">Дедлайн и старт</span>
+          <div className="deadline-fields">
+            <label className="deadline-part" htmlFor="event-deadline-date">Дата<input id="event-deadline-date" className="text-input" type="date" value={deadlineDate} onChange={(event) => updateDeadline(event.target.value, deadlineTime)} required /></label>
+            <label className="deadline-part" htmlFor="event-deadline-time">Время · 24 ч<input id="event-deadline-time" className="text-input deadline-time-input" type="text" inputMode="text" placeholder="ЧЧ:ММ" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxLength={5} value={deadlineTime} onChange={(event) => updateDeadline(deadlineDate, event.target.value)} required aria-describedby="event-deadline-hint" /></label>
+          </div>
+          <small className="field-hint" id="event-deadline-hint">Введи время в формате 24 часов, например 18:30. По дедлайну карточки заблокируются и игра начнётся.</small>
         </div>
       </div>
 
@@ -123,6 +143,24 @@ export default function CreateEventForm({ initial, allowGridSize = true, submitL
           <button type="button" className="remove-trigger-button" onClick={() => setTriggers((current) => current.filter((_, rowIndex) => rowIndex !== index))} aria-label={`Удалить триггер ${index + 1}`}>×</button>
         </div>)}
       </div>
+      <details className="trigger-order-details">
+        <summary>Детали · порядок триггеров</summary>
+        <p className="field-hint">Перетащи триггеры или используй стрелки. Этот порядок увидят игроки при сборке карточки.</p>
+        <ol className="trigger-order-list">
+          {triggers.map((trigger, index) => <li
+            className={`trigger-order-item${draggingTriggerIndex === index ? ' trigger-order-item-dragging' : ''}`}
+            key={`${trigger.label}-${index}`}
+            draggable
+            onDragStart={(event) => { setDraggingTriggerIndex(index); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', String(index)); }}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => { event.preventDefault(); const from = Number(event.dataTransfer.getData('text/plain')); moveTrigger(from, index); setDraggingTriggerIndex(null); }}
+            onDragEnd={() => setDraggingTriggerIndex(null)}
+          >
+            <span className="trigger-order-handle" aria-hidden="true">⠿</span><span className="trigger-order-emoji" aria-hidden="true">{trigger.emoji}</span><span className="trigger-order-name">{trigger.label || `Триггер ${index + 1}`}</span>
+            <div className="trigger-order-buttons"><button type="button" aria-label={`Поднять триггер ${index + 1}`} disabled={index === 0} onClick={() => moveTrigger(index, index - 1)}>↑</button><button type="button" aria-label={`Опустить триггер ${index + 1}`} disabled={index === triggers.length - 1} onClick={() => moveTrigger(index, index + 1)}>↓</button></div>
+          </li>)}
+        </ol>
+      </details>
       <button className="add-trigger-button" type="button" onClick={() => setTriggers((current) => [...current, { label: '', emoji: DEFAULT_TRIGGER_EMOJI }])}>+ Добавить триггер</button>
       <small className="field-hint">Добавь хотя бы {minimum} разных вариантов — игроки сами соберут из них карточки.</small>
       {error && <p className="form-error" role="alert">{error}</p>}

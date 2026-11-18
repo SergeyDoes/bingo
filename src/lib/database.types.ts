@@ -30,6 +30,7 @@ export type EventTriggerRow = {
   emoji: string;
   occurred: boolean;
   created_at: string;
+  sort_order: number;
 };
 
 export type ParticipantRow = {
@@ -38,6 +39,7 @@ export type ParticipantRow = {
   user_id: string;
   display_name: string;
   joined_at: string;
+  card_updated_at: string | null;
 };
 
 export type CardCellRow = {
@@ -64,7 +66,7 @@ export interface Database {
       };
       event_triggers: {
         Row: EventTriggerRow;
-        Insert: Pick<EventTriggerRow, 'event_id' | 'label'> & Partial<Pick<EventTriggerRow, 'id' | 'emoji' | 'occurred' | 'created_at'>>;
+        Insert: Pick<EventTriggerRow, 'event_id' | 'label'> & Partial<Pick<EventTriggerRow, 'id' | 'emoji' | 'occurred' | 'created_at' | 'sort_order'>>;
         Update: Partial<Pick<EventTriggerRow, 'label' | 'emoji'>>;
         Relationships: [];
       };
@@ -131,6 +133,7 @@ export interface Database {
         Args: { p_event_id: string };
         Returns: Array<{ participant_id: string; display_name: string; score: number }>;
       };
+      delete_event: { Args: { p_event_id: string }; Returns: boolean };
       has_event_access: { Args: { target_event_id: string }; Returns: boolean };
       is_event_host: { Args: { target_event_id: string }; Returns: boolean };
       is_signup_open: { Args: { target_event_id: string }; Returns: boolean };

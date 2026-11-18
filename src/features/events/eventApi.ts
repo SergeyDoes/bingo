@@ -13,6 +13,10 @@ export interface EventResult {
   score: number;
 }
 
+export interface ParticipantEvent extends EventRow {
+  card_updated_at: string | null;
+}
+
 export async function listHostEvents(hostId: string): Promise<EventRow[]> {
   const { data, error } = await requireSupabase()
     .from('events')
@@ -21,6 +25,22 @@ export async function listHostEvents(hostId: string): Promise<EventRow[]> {
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data ?? [];
+}
+
+export async function listParticipantEvents(userId: string): Promise<ParticipantEvent[]> {
+  const client = requireSupabase();
+  const { data: participantRows, error: participantError } = await client
+    .from('participants')
+    .select('event_id, card_updated_at')
+    .eq('user_id', userId);
+  if (participantError) throw participantError;
+  if (!participantRows?.length) return [];
+
+  const eventIds = [...new Set(participantRows.map((row) => row.event_id))];
+  const { data: events, error: eventError } = await client.from('events').select('*').in('id', eventIds);
+  if (eventError) throw eventError;
+  const cardUpdates = new Map(participantRows.map((row) => [row.event_id, row.card_updated_at]));
+  return (events ?? []).map((event) => ({ ...event, card_updated_at: cardUpdates.get(event.id) ?? null }));
 }
 
 export async function listPublicEvents(): Promise<EventRow[]> {
@@ -127,9 +147,14 @@ export async function getEventTriggers(eventId: string): Promise<EventTriggerRow
     .from('event_triggers')
     .select('*')
     .eq('event_id', eventId)
-    .order('created_at', { ascending: true });
+    .order('sort_order', { ascending: true });
   if (error) throw error;
   return data ?? [];
+}
+
+export async function deleteEvent(eventId: string): Promise<void> {
+  const { error } = await requireSupabase().rpc('delete_event', { p_event_id: eventId });
+  if (error) throw error;
 }
 
 export async function getEventParticipants(eventId: string): Promise<ParticipantRow[]> {

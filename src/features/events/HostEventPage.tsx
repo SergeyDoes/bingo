@@ -9,7 +9,7 @@ import ActiveEventPanel from './ActiveEventPanel';
 import CreateEventForm, { toLocalInputValue } from './CreateEventForm';
 import CardDraftPreview from './CardDraftPreview';
 import Leaderboard from './Leaderboard';
-import { finalizeEvent, getEvent, getEventModerators, getEventParticipants, getEventResults, getEventTriggers, setEventModerator, startEvent, updateEventSetup, type EventResult } from './eventApi';
+import { deleteEvent, finalizeEvent, getEvent, getEventModerators, getEventParticipants, getEventResults, getEventTriggers, setEventModerator, startEvent, updateEventSetup, type EventResult } from './eventApi';
 import type { EventDraft } from './eventValidation';
 
 function formatDate(date: string): string {
@@ -33,6 +33,7 @@ export default function HostEventPage() {
   const [joiningAsPlayer, setJoiningAsPlayer] = useState(false);
   const [starting, setStarting] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
   const refresh = useCallback(async () => {
@@ -124,6 +125,32 @@ export default function HostEventPage() {
     }
   }
 
+  function copyEvent() {
+    if (!event) return;
+    const copyDraft: EventDraft = {
+      title: `${event.title.slice(0, 72)} — копия`,
+      emoji: event.emoji,
+      gridSize: event.grid_size,
+      signupDeadline: toLocalInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000)),
+      isPublic: false,
+      triggers: triggers.map((trigger) => ({ label: trigger.label, emoji: trigger.emoji })),
+    };
+    navigate('/create', { state: { copyDraft } });
+  }
+
+  async function removeEvent() {
+    if (!eventId || !event || !window.confirm(`Удалить «${event.title}» вместе с карточками участников и результатами? Это действие нельзя отменить.`)) return;
+    setDeleting(true);
+    setError('');
+    try {
+      await deleteEvent(eventId);
+      navigate('/dashboard', { replace: true });
+    } catch (cause) {
+      setError(formatError(cause, 'Не удалось удалить бинго.'));
+      setDeleting(false);
+    }
+  }
+
   if (loading) return <main className="workspace-page"><div className="loading-panel full-loading">Загружаем событие<span className="loading-dots">•••</span></div></main>;
   if (!event) return <main className="workspace-page"><header className="workspace-topbar"><Link className="brand" to="/dashboard"><span className="brand-mark">Б</span><span>БИНГО<span className="brand-period">.</span></span></Link></header><div className="not-found-card"><span className="eyebrow">СОБЫТИЕ НЕ НАЙДЕНО</span><p>{error || 'У тебя нет доступа к этой странице.'}</p><Link className="button button-primary" to="/dashboard">К моим событиям <span>↗</span></Link></div></main>;
 
@@ -165,6 +192,8 @@ export default function HostEventPage() {
           <p>{event.grid_size} × {event.grid_size} · {triggers.length} триггеров · {participants.length} игроков</p>
         </div>
         <div className="event-page-actions">
+          {isHost && <button className="button button-outline" type="button" onClick={copyEvent}>Копировать бинго <span aria-hidden="true">↗</span></button>}
+          {isHost && <button className="button button-outline event-delete-button" type="button" onClick={() => void removeEvent()} disabled={deleting}>{deleting ? 'Удаляем…' : 'Удалить бинго'} <span aria-hidden="true">×</span></button>}
           {isHostParticipant && <Link className="button button-outline" to={`/play/${event.id}`}>Моя карточка <span aria-hidden="true">↗</span></Link>}
           {phase === 'signup' && !isHostParticipant && <button className="button button-outline" type="button" onClick={() => void joinAsPlayer()} disabled={joiningAsPlayer}>{joiningAsPlayer ? 'Подключаемся…' : `Играть как ${String(user?.user_metadata?.name || 'Twitch')}`} <span aria-hidden="true">↗</span></button>}
           {phase === 'signup' && isHost && <button className="button button-primary" onClick={() => void startEarly()} disabled={starting}>{starting ? 'Запускаем…' : 'Стартовать сейчас'} <span aria-hidden="true">↗</span></button>}
