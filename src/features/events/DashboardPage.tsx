@@ -9,8 +9,7 @@ import { requireSupabase } from '../../lib/supabase';
 import { locale, tr } from '../../lib/i18n';
 
 type DashboardTab = 'created' | 'participating';
-type CreatedSort = 'created_at' | 'signup_deadline' | 'finalized_at';
-type ParticipatingSort = 'signup_deadline' | 'finalized_at' | 'card_updated_at';
+type SortField = 'status' | 'title' | 'grid_size' | 'created_at' | 'signup_deadline' | 'finalized_at' | 'card_updated_at';
 
 function eventStatus(event: EventRow, now: Date): { label: string; className: string } {
   const phase = getEventPhase(event, now);
@@ -30,7 +29,13 @@ function startDate(event: EventRow): string {
   return event.manual_started_at ?? event.signup_deadline;
 }
 
-function sortTimestamp(event: EventRow | ParticipantEvent, field: CreatedSort | ParticipatingSort): number | null {
+function sortValue(event: EventRow | ParticipantEvent, field: SortField, now: Date): number | string | null {
+  if (field === 'status') {
+    const phase = getEventPhase(event, now);
+    return phase === 'signup' ? 0 : phase === 'active' ? 1 : 2;
+  }
+  if (field === 'title') return event.title;
+  if (field === 'grid_size') return event.grid_size;
   let value: string | null = null;
   if (field === 'created_at') value = event.created_at;
   else if (field === 'signup_deadline') value = startDate(event);
@@ -58,8 +63,8 @@ export default function DashboardPage() {
   const [createdEvents, setCreatedEvents] = useState<EventRow[]>([]);
   const [participatingEvents, setParticipatingEvents] = useState<ParticipantEvent[]>([]);
   const [tab, setTab] = useState<DashboardTab>('created');
-  const [createdSort, setCreatedSort] = useState<CreatedSort>('created_at');
-  const [participatingSort, setParticipatingSort] = useState<ParticipatingSort>('signup_deadline');
+  const [createdSort, setCreatedSort] = useState<SortField>('created_at');
+  const [participatingSort, setParticipatingSort] = useState<SortField>('signup_deadline');
   const [createdAscending, setCreatedAscending] = useState(false);
   const [participatingAscending, setParticipatingAscending] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -104,12 +109,15 @@ export default function DashboardPage() {
   const sortField = tab === 'created' ? createdSort : participatingSort;
   const ascending = tab === 'created' ? createdAscending : participatingAscending;
   const sortedEvents = useMemo(() => [...currentEvents].sort((left, right) => {
-    const leftTime = sortTimestamp(left, sortField);
-    const rightTime = sortTimestamp(right, sortField);
-    if (leftTime === null) return rightTime === null ? 0 : 1;
-    if (rightTime === null) return -1;
-    return (leftTime - rightTime) * (ascending ? 1 : -1);
-  }), [currentEvents, sortField, ascending]);
+    const leftValue = sortValue(left, sortField, now);
+    const rightValue = sortValue(right, sortField, now);
+    if (leftValue === null) return rightValue === null ? 0 : 1;
+    if (rightValue === null) return -1;
+    const comparison = typeof leftValue === 'string' && typeof rightValue === 'string'
+      ? leftValue.localeCompare(rightValue, locale, { sensitivity: 'base' })
+      : Number(leftValue) - Number(rightValue);
+    return comparison * (ascending ? 1 : -1);
+  }), [currentEvents, sortField, ascending, now]);
 
   async function exit() {
     try {
@@ -120,19 +128,20 @@ export default function DashboardPage() {
     }
   }
 
-  function changeSort(value: string) {
+  function changeSort(value: SortField) {
     if (tab === 'created') {
-      setCreatedSort(value as CreatedSort);
-      setCreatedAscending(value === 'signup_deadline');
+      if (createdSort === value) setCreatedAscending((direction) => !direction);
+      else { setCreatedSort(value); setCreatedAscending(true); }
     } else {
-      setParticipatingSort(value as ParticipatingSort);
-      setParticipatingAscending(value === 'signup_deadline');
+      if (participatingSort === value) setParticipatingAscending((direction) => !direction);
+      else { setParticipatingSort(value); setParticipatingAscending(true); }
     }
   }
 
-  function toggleOrder() {
-    if (tab === 'created') setCreatedAscending((value) => !value);
-    else setParticipatingAscending((value) => !value);
+  function sortHeader(label: string, field: SortField) {
+    const active = sortField === field;
+    const direction = active ? (ascending ? '↑' : '↓') : '';
+    return <button type="button" className={active ? 'dashboard-column-sort dashboard-column-sort-active' : 'dashboard-column-sort'} onClick={() => changeSort(field)} aria-label={tr(`Сортировать по: ${label}`, `Sort by: ${label}`)}>{label}<span aria-hidden="true">{direction}</span></button>;
   }
 
   const count = currentEvents.length;
@@ -157,19 +166,23 @@ export default function DashboardPage() {
               <button type="button" className={tab === 'created' ? 'dashboard-tab dashboard-tab-active' : 'dashboard-tab'} role="tab" aria-selected={tab === 'created'} onClick={() => setTab('created')}>{tr('Созданы мной', 'Created by me')} <span>{createdEvents.length}</span></button>
               <button type="button" className={tab === 'participating' ? 'dashboard-tab dashboard-tab-active' : 'dashboard-tab'} role="tab" aria-selected={tab === 'participating'} onClick={() => setTab('participating')}>{tr('Участвую', 'Playing')} <span>{participatingEvents.length}</span></button>
             </div>
-            <div className="dashboard-sort">
-              <label htmlFor="dashboard-sort-field">{tr('Сортировать по', 'Sort by')}</label>
-              <select id="dashboard-sort-field" className="text-input" value={sortField} onChange={(event) => changeSort(event.target.value)}>
-                {tab === 'created' ? <><option value="created_at">{tr('Дате создания', 'Creation date')}</option><option value="signup_deadline">{tr('Дате старта', 'Start date')}</option><option value="finalized_at">{tr('Дате финиша', 'Finish date')}</option></> : <><option value="signup_deadline">{tr('Дате старта', 'Start date')}</option><option value="finalized_at">{tr('Дате финиша', 'Finish date')}</option><option value="card_updated_at">{tr('Обновлению карточки', 'Card update')}</option></>}
-              </select>
-              <button type="button" className="button button-outline button-small dashboard-sort-order" onClick={toggleOrder}>{ascending ? tr('Сначала ранние ↑', 'Oldest first ↑') : tr('Сначала поздние ↓', 'Newest first ↓')}</button>
-            </div>
           </div>
           {error && <div className="inline-error" role="alert">{error}<button className="quiet-button" onClick={() => void refresh()}>{tr('Повторить', 'Retry')}</button></div>}
           {loading ? <div className="loading-panel">{tr('Загружаем события', 'Loading events')}<span className="loading-dots">•••</span></div> : sortedEvents.length === 0 ? (
             <div className="empty-events"><span className="empty-glyph">▦</span><strong>{tr('Поле пока пустое.', 'Nothing here yet.')}</strong><p>{tab === 'created' && canCreateEvents ? tr('Создай первое бинго, и оно появится в этом списке.', 'Create your first bingo event to see it here.') : isEmpty}</p>{tab === 'created' && canCreateEvents ? <Link className="button button-primary" to="/create">{tr('Создать первое бинго', 'Create your first bingo')} ↗</Link> : tab === 'participating' ? <Link className="button button-outline" to="/">{tr('Посмотреть открытые бинго', 'Browse open bingo')} ↗</Link> : null}</div>
           ) : (
             <div className="event-list">
+              <div className="dashboard-table-header" aria-label={tr('Сортировка списка бинго', 'Sort bingo list')}>
+                {sortHeader(tr('Статус', 'Status'), 'status')}
+                {sortHeader(tr('Название', 'Name'), 'title')}
+                {sortHeader(tr('Размер', 'Size'), 'grid_size')}
+                <span className="dashboard-table-date-headers">
+                  {tab === 'created' && sortHeader(tr('Создано', 'Created'), 'created_at')}
+                  {sortHeader(tr('Старт', 'Start'), 'signup_deadline')}
+                  {sortHeader(tr('Финиш', 'Finished'), 'finalized_at')}
+                  {tab === 'participating' && sortHeader(tr('Карточка обновлена', 'Card updated'), 'card_updated_at')}
+                </span>
+              </div>
               {sortedEvents.map((event) => {
                 const status = eventStatus(event, now);
                 const eventDates = dateFields(event, tab);
