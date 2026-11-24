@@ -1,5 +1,6 @@
 import { useEffect, useState, type DragEvent } from 'react';
 import type { TriggerDraft } from './eventValidation';
+import { tr } from '../../lib/i18n';
 
 interface CardDraftPreviewProps {
   gridSize: number;
@@ -33,16 +34,16 @@ export default function CardDraftPreview({ gridSize, triggers }: CardDraftPrevie
 
   return (
     <aside className="card-draft-preview">
-      <div className="panel-heading"><div><span className="eyebrow">ПРИМЕР КАРТОЧКИ</span><h2>{gridSize} × {gridSize}</h2></div><span className="count-badge">ПРЕВЬЮ</span></div>
+      <div className="panel-heading"><div><span className="eyebrow">{tr('ПРИМЕР КАРТОЧКИ', 'CARD PREVIEW')}</span><h2>{gridSize} × {gridSize}</h2></div><span className="count-badge">{tr('ПРЕВЬЮ', 'PREVIEW')}</span></div>
       <div className="draft-preview-grid" style={{ gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))` }}>
         {Array.from({ length: gridSize * gridSize }, (_, position) => {
           const trigger = visibleTriggers[order[position] ?? position];
-          return <button key={position} type="button" className={`draft-preview-cell ${trigger ? '' : 'draft-preview-empty'}`} draggable={Boolean(trigger)} onDragStart={(event) => { event.dataTransfer.setData('text/plain', String(position)); event.dataTransfer.effectAllowed = 'move'; }} onDragOver={(event) => event.preventDefault()} onDrop={(event) => move(event, position)} aria-label={trigger?.label || `Пустая ячейка ${position + 1}`}>
+          return <button key={position} type="button" className={`draft-preview-cell ${trigger ? '' : 'draft-preview-empty'}`} draggable={Boolean(trigger)} onDragStart={(event) => { event.dataTransfer.setData('text/plain', String(position)); event.dataTransfer.effectAllowed = 'move'; }} onDragOver={(event) => event.preventDefault()} onDrop={(event) => move(event, position)} aria-label={trigger?.label || `${tr('Пустая ячейка', 'Empty cell')} ${position + 1}`}>
             {trigger ? <><span>{trigger.emoji}</span><strong>{trigger.label}</strong></> : <span>+</span>}
           </button>;
         })}
       </div>
-      <p className="field-hint">Перетаскивай триггеры для примера. Игроки смогут собрать свою раскладку.</p>
+      <p className="field-hint">{tr('Перетаскивай триггеры для примера. Игроки смогут собрать свою раскладку.', 'Drag triggers around to preview the card. Players will arrange their own cards.')}</p>
     </aside>
   );
 }

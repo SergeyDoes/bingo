@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { formatError } from '../../lib/errors';
 import { useAuth } from './AuthProvider';
+import { tr } from '../../lib/i18n';
 
 export default function AuthPage() {
   const { signInWithTwitch, configured } = useAuth();
@@ -19,24 +20,24 @@ export default function AuthPage() {
       callbackUrl.searchParams.set('next', returnTo);
       await signInWithTwitch(callbackUrl.toString());
     } catch (cause) {
-      setError(formatError(cause, 'Не получилось войти через Twitch.'));
+      setError(formatError(cause, tr('Не получилось войти через Twitch.', 'Could not log in with Twitch.')));
       setBusy(false);
     }
   }
 
   return (
     <main className="placeholder-page">
-      <header className="topbar"><Link className="brand" to="/" aria-label="Бинго — на главную"><span className="brand-mark">Б</span><span>БИНГО<span className="brand-period">.</span></span></Link></header>
+      <header className="topbar"><Link className="brand" to="/" aria-label={tr('Бинго — на главную', 'Bingo — home')}><span className="brand-mark">Б</span><span>BINGO<span className="brand-period">.</span></span></Link></header>
       <section className="placeholder-card login-card">
-        <span className="eyebrow">ВХОД ЧЕРЕЗ TWITCH</span>
-        <h1>Войти<br /><span>в бинго.</span></h1>
-        <p>Войди через Twitch, чтобы присоединиться к бинго или создать своё событие.</p>
-        {!configured && <p className="setup-callout">Сначала подключи Supabase в настройках проекта.</p>}
+        <span className="eyebrow">{tr('ВХОД ЧЕРЕЗ TWITCH', 'LOG IN WITH TWITCH')}</span>
+        <h1>{tr('Войти', 'Log in')}<br /><span>{tr('в бинго.', 'to bingo.')}</span></h1>
+        <p>{tr('Войди через Twitch, чтобы присоединиться к бинго или создать своё событие.', 'Log in with Twitch to join a bingo event or create your own.')}</p>
+        {!configured && <p className="setup-callout">{tr('Сначала подключи Supabase в настройках проекта.', 'Connect Supabase in the project settings first.')}</p>}
         {error && <p className="form-error" role="alert">{error}</p>}
         <button className="button button-primary twitch-login-button" type="button" onClick={() => void signIn()} disabled={!configured || busy}>
-          {busy ? 'Переходим в Twitch…' : 'Продолжить с Twitch'} <span aria-hidden="true">↗</span>
+          {busy ? tr('Переходим в Twitch…', 'Redirecting to Twitch…') : tr('Продолжить с Twitch', 'Continue with Twitch')} <span aria-hidden="true">↗</span>
         </button>
-        <Link className="text-link login-back" to="/">← На главную</Link>
+        <Link className="text-link login-back" to="/">← {tr('На главную', 'Home')}</Link>
       </section>
     </main>
   );

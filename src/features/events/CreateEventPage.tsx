@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { formatError } from '../../lib/errors';
 import { requireSupabase } from '../../lib/supabase';
 import CardDraftPreview from './CardDraftPreview';
+import { tr } from '../../lib/i18n';
 import CreateEventForm, { toLocalInputValue } from './CreateEventForm';
 import { createEvent } from './eventApi';
 import type { EventDraft } from './eventValidation';
@@ -41,8 +42,8 @@ export default function CreateEventPage() {
   }
 
   return <main className="workspace-page">
-    <header className="workspace-topbar"><Link className="brand" to="/" aria-label="На главную"><span className="brand-mark">Б</span><span>БИНГО<span className="brand-period">.</span></span></Link><Link className="quiet-link" to="/dashboard">← К СПИСКУ СОБЫТИЙ</Link></header>
-    <section className="create-page-heading"><span className="eyebrow">{copyDraft ? 'КОПИЯ · НОВОЕ СОБЫТИЕ' : 'НОВОЕ СОБЫТИЕ'} · {String(user?.user_metadata?.name || 'TWITCH')}</span><h1>Новое<br /><span>бинго.</span></h1></section>
-    {canCreate === null ? <div className="loading-panel">Проверяем право ведущего<span className="loading-dots">•••</span></div> : canCreate ? <div className="create-event-workspace"><section className="create-event-form-panel"><CreateEventForm key={location.key} mode="create" initial={copyDraft} submitLabel="Создать бинго" onSubmit={submit} onDraftChange={setDraft} /></section><CardDraftPreview gridSize={draft.gridSize} triggers={draft.triggers} /></div> : <section className="not-found-card"><span className="eyebrow">ДОСТУП ВЕДУЩЕГО</span><h2>Пока нельзя создавать бинго.</h2><p>{error || 'Попроси владельца сервиса добавить твой Twitch-ник в список ведущих.'}</p><Link className="button button-outline" to="/dashboard">В меню событий</Link></section>}
+    <header className="workspace-topbar"><Link className="brand" to="/" aria-label={tr('На главную', 'Home')}><span className="brand-mark">Б</span><span>BINGO<span className="brand-period">.</span></span></Link><Link className="quiet-link" to="/dashboard">← {tr('К СПИСКУ СОБЫТИЙ', 'BACK TO EVENTS')}</Link></header>
+    <section className="create-page-heading"><span className="eyebrow">{copyDraft ? tr('КОПИЯ · НОВОЕ СОБЫТИЕ', 'COPY · NEW EVENT') : tr('НОВОЕ СОБЫТИЕ', 'NEW EVENT')} · {String(user?.user_metadata?.name || 'TWITCH')}</span><h1>{tr('Новое', 'New')}<br /><span>{tr('бинго.', 'bingo.')}</span></h1></section>
+    {canCreate === null ? <div className="loading-panel">{tr('Проверяем право ведущего', 'Checking host permissions')}<span className="loading-dots">•••</span></div> : canCreate ? <div className="create-event-workspace"><section className="create-event-form-panel"><CreateEventForm key={location.key} mode="create" initial={copyDraft} submitLabel="Создать бинго" onSubmit={submit} onDraftChange={setDraft} /></section><CardDraftPreview gridSize={draft.gridSize} triggers={draft.triggers} /></div> : <section className="not-found-card"><span className="eyebrow">{tr('ДОСТУП ВЕДУЩЕГО', 'HOST ACCESS')}</span><h2>{tr('Пока нельзя создавать бинго.', 'You cannot create bingo events yet.')}</h2><p>{error || tr('Попроси владельца сервиса добавить твой Twitch-ник в список ведущих.', 'Ask the service owner to add your Twitch username to the host list.')}</p><Link className="button button-outline" to="/dashboard">{tr('В меню событий', 'Back to events')}</Link></section>}
   </main>;
 }

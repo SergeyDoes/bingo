@@ -104,7 +104,11 @@ export interface Database {
         Returns: Json;
       };
       join_event: {
-        Args: { p_invite_token: string; p_display_name?: string | null };
+        Args: { p_invite_token: string; p_display_name?: string | null; p_guest_recovery_code?: string | null };
+        Returns: Json;
+      };
+      recover_guest_card: {
+        Args: { p_invite_token: string; p_recovery_code: string; p_replacement_code: string };
         Returns: Json;
       };
       save_card: {

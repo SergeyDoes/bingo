@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { EVENT_EMOJI_OPTIONS } from './emojiOptions';
+import { tr } from '../../lib/i18n';
 
 interface EmojiPickerProps {
   value: string;
@@ -83,7 +84,7 @@ export default function EmojiPicker({ value, label, variant = 'trigger', onChang
         type="button"
         className="emoji-picker-trigger"
         onClick={togglePicker}
-        aria-label={`${label}: ${value}, изменить`}
+        aria-label={`${label}: ${value}, ${tr('изменить', 'change')}`}
         aria-expanded={open}
         aria-haspopup="dialog"
       >
@@ -91,7 +92,7 @@ export default function EmojiPicker({ value, label, variant = 'trigger', onChang
       </button>
       {open && createPortal(
         <div ref={popupRef} className="emoji-picker-popup" role="dialog" aria-label={label} style={{ left: position.left, top: position.top, width: position.width }}>
-          <div className="emoji-picker-heading"><strong>Выбери эмодзи</strong><button type="button" onClick={() => setOpen(false)} aria-label="Закрыть палитру">×</button></div>
+          <div className="emoji-picker-heading"><strong>{tr('Выбери эмодзи', 'Choose an emoji')}</strong><button type="button" onClick={() => setOpen(false)} aria-label={tr('Закрыть палитру', 'Close picker')}>×</button></div>
           <div className="emoji-picker-grid">
             {EVENT_EMOJI_OPTIONS.map((emoji, index) => <button
               ref={emoji === value || index === 0 ? firstOptionRef : undefined}

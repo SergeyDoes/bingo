@@ -6,6 +6,7 @@ import { getEventPhase } from '../../lib/phase';
 import { useAuth } from '../auth/AuthProvider';
 import { listHostEvents, listParticipantEvents, type ParticipantEvent } from './eventApi';
 import { requireSupabase } from '../../lib/supabase';
+import { locale, tr } from '../../lib/i18n';
 
 type DashboardTab = 'created' | 'participating';
 type CreatedSort = 'created_at' | 'signup_deadline' | 'finalized_at';
@@ -13,14 +14,14 @@ type ParticipatingSort = 'signup_deadline' | 'finalized_at' | 'card_updated_at';
 
 function eventStatus(event: EventRow, now: Date): { label: string; className: string } {
   const phase = getEventPhase(event, now);
-  if (phase === 'finalized') return { label: 'Завершено', className: 'status-final' };
-  if (phase === 'active') return { label: 'Идёт игра', className: 'status-live' };
-  return { label: 'Набор игроков', className: 'status-open' };
+  if (phase === 'finalized') return { label: tr('Завершено', 'Finished'), className: 'status-final' };
+  if (phase === 'active') return { label: tr('Идёт игра', 'In progress'), className: 'status-live' };
+  return { label: tr('Набор игроков', 'Signups open'), className: 'status-open' };
 }
 
 function formatDate(date: string | null): string {
-  if (!date) return '—';
-  return new Intl.DateTimeFormat('ru-RU', {
+  if (!date) return tr('—', '—');
+  return new Intl.DateTimeFormat(locale, {
     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
   }).format(new Date(date));
 }
@@ -40,14 +41,14 @@ function sortTimestamp(event: EventRow | ParticipantEvent, field: CreatedSort | 
 
 function dateFields(event: EventRow | ParticipantEvent, tab: DashboardTab): Array<{ label: string; date: string | null; empty?: string }> {
   if (tab === 'created') return [
-    { label: 'Создано', date: event.created_at },
-    { label: 'Старт', date: startDate(event) },
-    { label: 'Финиш', date: event.finalized_at },
+    { label: tr('Создано', 'Created'), date: event.created_at },
+    { label: tr('Старт', 'Start'), date: startDate(event) },
+    { label: tr('Финиш', 'Finished'), date: event.finalized_at },
   ];
   return [
-    { label: 'Старт', date: startDate(event) },
-    { label: 'Финиш', date: event.finalized_at },
-    { label: 'Карточка обновлена', date: 'card_updated_at' in event ? event.card_updated_at : null, empty: 'Нет отметки' },
+    { label: tr('Старт', 'Start'), date: startDate(event) },
+    { label: tr('Финиш', 'Finished'), date: event.finalized_at },
+    { label: tr('Карточка обновлена', 'Card updated'), date: 'card_updated_at' in event ? event.card_updated_at : null, empty: tr('Нет отметки', 'No update') },
   ];
 }
 
@@ -78,7 +79,7 @@ export default function DashboardPage() {
       setCreatedEvents(hostRows);
       setParticipatingEvents(participantRows);
     } catch (cause) {
-      setError(formatError(cause, 'Не удалось загрузить события.'));
+      setError(formatError(cause, tr('Не удалось загрузить события.', 'Could not load events.')));
     } finally {
       setLoading(false);
     }
@@ -89,7 +90,7 @@ export default function DashboardPage() {
     let active = true;
     void requireSupabase().rpc('is_bingo_host_authorized').then(({ data, error }) => {
       if (!active) return;
-      if (error) { setError(formatError(error, 'Не удалось проверить права ведущего.')); setCanCreateEvents(false); }
+      if (error) { setError(formatError(error, tr('Не удалось проверить права ведущего.', 'Could not check host permissions.'))); setCanCreateEvents(false); }
       else setCanCreateEvents(data);
     });
     return () => { active = false; };
@@ -135,38 +136,38 @@ export default function DashboardPage() {
   }
 
   const count = currentEvents.length;
-  const isEmpty = tab === 'created' ? 'Созданных тобой бинго пока нет.' : 'Ты пока не участвуешь ни в одном бинго.';
+  const isEmpty = tab === 'created' ? tr('Созданных тобой бинго пока нет.', 'You have not created any bingo events yet.') : tr('Ты пока не участвуешь ни в одном бинго.', 'You are not playing in any bingo events yet.');
 
   return (
     <main className="workspace-page">
       <header className="workspace-topbar">
         <Link className="brand" to="/" aria-label="Бинго — на главную"><span className="brand-mark">Б</span><span>БИНГО<span className="brand-period">.</span></span></Link>
-        <div className="workspace-user"><span>{String(user?.user_metadata?.preferred_username || user?.user_metadata?.name || 'Twitch')}</span><button className="quiet-button" onClick={exit}>Выйти ↗</button></div>
+        <div className="workspace-user"><span>{String(user?.user_metadata?.preferred_username || user?.user_metadata?.name || 'Twitch')}</span><button className="quiet-button" onClick={exit}>{tr('Выйти', 'Log out')} ↗</button></div>
       </header>
       <section className="workspace-intro">
-        <span className="eyebrow"><span className="live-dot" /> МЕНЮ СОБЫТИЙ</span>
-        <h1>Твои<br /><span>бинго.</span></h1>
-        <p>Выбери событие, чтобы управлять им или продолжить игру.</p>
+        <span className="eyebrow"><span className="live-dot" /> {tr('МЕНЮ СОБЫТИЙ', 'EVENTS')}</span>
+        <h1>{tr('Твои', 'Your')}<br /><span>bingo.</span></h1>
+        <p>{tr('Выбери событие, чтобы управлять им или продолжить игру.', 'Choose an event to manage it or continue playing.')}</p>
       </section>
       <div className="dashboard-grid dashboard-grid-single">
         <section className="dashboard-events">
-          <div className="panel-heading"><div><span className="eyebrow">СПИСОК</span><h2>Мои бинго</h2></div><div className="dashboard-menu-actions">{canCreateEvents && <Link className="button button-primary button-small" to="/create">Создать бинго ↗</Link>}<span className="count-badge">{count.toString().padStart(2, '0')}</span></div></div>
+          <div className="panel-heading"><div><span className="eyebrow">{tr('СПИСОК', 'LIST')}</span><h2>{tr('Мои бинго', 'My bingo')}</h2></div><div className="dashboard-menu-actions">{canCreateEvents && <Link className="button button-primary button-small" to="/create">{tr('Создать бинго', 'Create bingo')} ↗</Link>}<span className="count-badge">{count.toString().padStart(2, '0')}</span></div></div>
           <div className="dashboard-list-toolbar">
-            <div className="dashboard-tabs" role="tablist" aria-label="Мои бинго">
-              <button type="button" className={tab === 'created' ? 'dashboard-tab dashboard-tab-active' : 'dashboard-tab'} role="tab" aria-selected={tab === 'created'} onClick={() => setTab('created')}>Созданы мной <span>{createdEvents.length}</span></button>
-              <button type="button" className={tab === 'participating' ? 'dashboard-tab dashboard-tab-active' : 'dashboard-tab'} role="tab" aria-selected={tab === 'participating'} onClick={() => setTab('participating')}>Участвую <span>{participatingEvents.length}</span></button>
+            <div className="dashboard-tabs" role="tablist" aria-label={tr('Мои бинго', 'My bingo')}>
+              <button type="button" className={tab === 'created' ? 'dashboard-tab dashboard-tab-active' : 'dashboard-tab'} role="tab" aria-selected={tab === 'created'} onClick={() => setTab('created')}>{tr('Созданы мной', 'Created by me')} <span>{createdEvents.length}</span></button>
+              <button type="button" className={tab === 'participating' ? 'dashboard-tab dashboard-tab-active' : 'dashboard-tab'} role="tab" aria-selected={tab === 'participating'} onClick={() => setTab('participating')}>{tr('Участвую', 'Playing')} <span>{participatingEvents.length}</span></button>
             </div>
             <div className="dashboard-sort">
-              <label htmlFor="dashboard-sort-field">Сортировать по</label>
+              <label htmlFor="dashboard-sort-field">{tr('Сортировать по', 'Sort by')}</label>
               <select id="dashboard-sort-field" className="text-input" value={sortField} onChange={(event) => changeSort(event.target.value)}>
-                {tab === 'created' ? <><option value="created_at">Дате создания</option><option value="signup_deadline">Дате старта</option><option value="finalized_at">Дате финиша</option></> : <><option value="signup_deadline">Дате старта</option><option value="finalized_at">Дате финиша</option><option value="card_updated_at">Обновлению карточки</option></>}
+                {tab === 'created' ? <><option value="created_at">{tr('Дате создания', 'Creation date')}</option><option value="signup_deadline">{tr('Дате старта', 'Start date')}</option><option value="finalized_at">{tr('Дате финиша', 'Finish date')}</option></> : <><option value="signup_deadline">{tr('Дате старта', 'Start date')}</option><option value="finalized_at">{tr('Дате финиша', 'Finish date')}</option><option value="card_updated_at">{tr('Обновлению карточки', 'Card update')}</option></>}
               </select>
-              <button type="button" className="button button-outline button-small dashboard-sort-order" onClick={toggleOrder}>{ascending ? 'Сначала ранние ↑' : 'Сначала поздние ↓'}</button>
+              <button type="button" className="button button-outline button-small dashboard-sort-order" onClick={toggleOrder}>{ascending ? tr('Сначала ранние ↑', 'Oldest first ↑') : tr('Сначала поздние ↓', 'Newest first ↓')}</button>
             </div>
           </div>
-          {error && <div className="inline-error" role="alert">{error}<button className="quiet-button" onClick={() => void refresh()}>Повторить</button></div>}
-          {loading ? <div className="loading-panel">Загружаем события<span className="loading-dots">•••</span></div> : sortedEvents.length === 0 ? (
-            <div className="empty-events"><span className="empty-glyph">▦</span><strong>Поле пока пустое.</strong><p>{tab === 'created' && canCreateEvents ? 'Создай первое бинго, и оно появится в этом списке.' : isEmpty}</p>{tab === 'created' && canCreateEvents ? <Link className="button button-primary" to="/create">Создать первое бинго ↗</Link> : tab === 'participating' ? <Link className="button button-outline" to="/">Посмотреть открытые бинго ↗</Link> : null}</div>
+          {error && <div className="inline-error" role="alert">{error}<button className="quiet-button" onClick={() => void refresh()}>{tr('Повторить', 'Retry')}</button></div>}
+          {loading ? <div className="loading-panel">{tr('Загружаем события', 'Loading events')}<span className="loading-dots">•••</span></div> : sortedEvents.length === 0 ? (
+            <div className="empty-events"><span className="empty-glyph">▦</span><strong>{tr('Поле пока пустое.', 'Nothing here yet.')}</strong><p>{tab === 'created' && canCreateEvents ? tr('Создай первое бинго, и оно появится в этом списке.', 'Create your first bingo event to see it here.') : isEmpty}</p>{tab === 'created' && canCreateEvents ? <Link className="button button-primary" to="/create">{tr('Создать первое бинго', 'Create your first bingo')} ↗</Link> : tab === 'participating' ? <Link className="button button-outline" to="/">{tr('Посмотреть открытые бинго', 'Browse open bingo')} ↗</Link> : null}</div>
           ) : (
             <div className="event-list">
               {sortedEvents.map((event) => {
@@ -185,7 +186,7 @@ export default function DashboardPage() {
           )}
         </section>
       </div>
-      <footer className="workspace-footer"><span>МОИ СОБЫТИЯ</span><Link to="/">НА ГЛАВНУЮ ↑</Link></footer>
+      <footer className="workspace-footer"><span>{tr('МОИ СОБЫТИЯ', 'MY EVENTS')}</span><Link to="/">{tr('НА ГЛАВНУЮ', 'HOME')} ↑</Link></footer>
     </main>
   );
 }

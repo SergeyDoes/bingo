@@ -1,5 +1,6 @@
 import { useState, type DragEvent } from 'react';
 import type { EventTriggerRow } from '../../lib/database.types';
+import { tr } from '../../lib/i18n';
 
 type DragSource = { kind: 'trigger'; id: string } | { kind: 'cell'; position: number };
 
@@ -76,16 +77,16 @@ export default function CardBuilder({ gridSize, triggers, cells, locked, saving,
               if (locked || !event.dataTransfer.types.includes('text/plain')) return;
               event.preventDefault();
               setDropTarget(position);
-            }} onDrop={(event) => handleDrop(event, position)} draggable={!locked && Boolean(trigger)} disabled={locked} aria-label={trigger ? `${trigger.label}${locked ? '' : ', перетащить или убрать'}` : `Пустая ячейка ${position + 1}`}>
+            }} onDrop={(event) => handleDrop(event, position)} draggable={!locked && Boolean(trigger)} disabled={locked} aria-label={trigger ? `${trigger.label}${locked ? '' : `, ${tr('перетащить или убрать', 'drag or remove')}`}` : `${tr('Пустая ячейка', 'Empty cell')} ${position + 1}`}>
               {trigger ? <><span className="builder-cell-index">{String(position + 1).padStart(2, '0')}</span><span className="builder-cell-emoji" aria-hidden="true">{trigger.emoji}</span><span className="builder-cell-label">{trigger.label}</span>{occurred && <b className="cell-check">✓</b>}</> : <span className="empty-cell-mark">+</span>}
             </button>;
           })}
         </div>
-        <div className="builder-progress"><span>{selectedCount} / {total} ЯЧЕЕК</span><span className={selectedCount === total ? 'progress-complete' : ''}>{selectedCount === total ? 'КАРТОЧКА ГОТОВА ✓' : `ЕЩЁ ${total - selectedCount}`}</span></div>
+        <div className="builder-progress"><span>{selectedCount} / {total} {tr('ЯЧЕЕК', 'CELLS')}</span><span className={selectedCount === total ? 'progress-complete' : ''}>{selectedCount === total ? `${tr('КАРТОЧКА ГОТОВА', 'CARD COMPLETE')} ✓` : `${tr('ЕЩЁ', 'LEFT')} ${total - selectedCount}`}</span></div>
       </div>
       {!locked && <div className="builder-triggers">
-        <div className="panel-heading"><div><span className="eyebrow">НА ВЫБОР</span><h2>Триггеры</h2></div><span className="count-badge">{triggers.length.toString().padStart(2, '0')}</span></div>
-        <p className="builder-hint">Перетащи триггер в нужную клетку или нажми, чтобы заполнить первую свободную. Клетки можно переставлять; каждый триггер используется один раз.</p>
+        <div className="panel-heading"><div><span className="eyebrow">{tr('НА ВЫБОР', 'AVAILABLE')}</span><h2>{tr('Триггеры', 'Triggers')}</h2></div><span className="count-badge">{triggers.length.toString().padStart(2, '0')}</span></div>
+        <p className="builder-hint">{tr('Перетащи триггер в нужную клетку или нажми, чтобы заполнить первую свободную. Клетки можно переставлять; каждый триггер используется один раз.', 'Drag a trigger into a cell or click it to fill the next empty cell. You can move cells around; each trigger can be used once.')}</p>
         <div className="trigger-choice-list">{triggers.map((trigger, index) => {
           const isSelected = selected.has(trigger.id);
           return <button type="button" className={`trigger-choice ${isSelected ? 'trigger-choice-selected' : ''} ${trigger.occurred ? 'trigger-choice-occurred' : ''} ${draggingSource?.kind === 'trigger' && draggingSource.id === trigger.id ? 'trigger-dragging' : ''}`} key={trigger.id} onClick={() => addTrigger(trigger.id)} onDragStart={(event) => {
@@ -94,10 +95,10 @@ export default function CardBuilder({ gridSize, triggers, cells, locked, saving,
             event.dataTransfer.setData('text/plain', `trigger:${trigger.id}`);
             setDraggingSource({ kind: 'trigger', id: trigger.id });
           }} onDragEnd={() => { setDraggingSource(null); setDropTarget(null); }} draggable={!locked && !isSelected} disabled={locked || isSelected}>
-            <span>{String(index + 1).padStart(2, '0')}</span><b className="trigger-choice-emoji" aria-hidden="true">{trigger.emoji}</b><strong>{trigger.label}</strong><i>{isSelected ? 'В КАРТОЧКЕ' : trigger.occurred ? 'СБЫЛОСЬ' : '+'}</i>
+            <span>{String(index + 1).padStart(2, '0')}</span><b className="trigger-choice-emoji" aria-hidden="true">{trigger.emoji}</b><strong>{trigger.label}</strong><i>{isSelected ? tr('В КАРТОЧКЕ', 'ON CARD') : trigger.occurred ? tr('СБЫЛОСЬ', 'HAPPENED') : '+'}</i>
           </button>;
         })}</div>
-        {!locked && <button className="button button-primary builder-save" onClick={onSave} disabled={saving}>{saving ? 'Сохраняем…' : selectedCount === total ? 'Сохранить карточку' : 'Сохранить прогресс'} <span aria-hidden="true">↗</span></button>}
+        {!locked && <button className="button button-primary builder-save" onClick={onSave} disabled={saving}>{saving ? tr('Сохраняем…', 'Saving…') : selectedCount === total ? tr('Сохранить карточку', 'Save card') : tr('Сохранить прогресс', 'Save progress')} <span aria-hidden="true">↗</span></button>}
       </div>}
     </div>
   );

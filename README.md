@@ -28,12 +28,17 @@ npm run dev
 ## Supabase
 
 1. Создай Supabase-проект.
-2. В SQL Editor выполни SQL-файлы из `supabase/migrations/` по порядку, включая новые миграции до `202611180006_twitch_names.sql`.
+2. В SQL Editor выполни SQL-файлы из `supabase/migrations/` по порядку.
 3. В Settings → API Keys скопируй Project URL и **publishable key** в `.env.local`.
 4. В Authentication → URL Configuration добавь адрес GitHub Pages как разрешённый Redirect URL (обычно `https://<owner>.github.io/<repo>/`).
 5. В Authentication → Sign In / Providers включи Twitch и добавь Client ID и Client Secret. В Twitch Developer Console OAuth Redirect URL должен быть `https://<project-ref>.supabase.co/auth/v1/callback`.
+6. В Authentication → Sign In / Providers включи **Allow anonymous sign-ins** для участия гостей по приглашению.
 
 Ведущий тоже может играть: до старта события он присоединяется со своим игровым именем и собирает отдельную карточку. После старта присоединиться с новой карточкой уже нельзя.
+
+Гости могут присоединиться по ссылке без Twitch: приложение создаёт гостевую сессию, а игрок вводит ник. После вступления карточка показывает одноразовый секретный ключ восстановления. Ключ позволяет перенести только эту карточку в другой браузер; при восстановлении выдаётся новый ключ, а старый перестаёт работать. Supabase хранит только проверочное значение ключа.
+
+По умолчанию Supabase ограничивает анонимные входы 30 запросами в час с одного IP. Перед массовым событием проверь настройки rate limit и CAPTCHA.
 
 Publishable key предназначен для браузера и попадёт в собранный JavaScript. Доступ к данным ограничивается RLS. Никогда не добавляй в `.env.local`, исходники или GitHub Actions **secret key** (`sb_secret_...`) или устаревший `service_role` key.
 

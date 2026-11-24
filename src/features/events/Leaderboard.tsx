@@ -1,4 +1,5 @@
 import type { EventResult } from './eventApi';
+import { tr } from '../../lib/i18n';
 
 interface LeaderboardProps {
   results: EventResult[];
@@ -6,14 +7,14 @@ interface LeaderboardProps {
 }
 
 function lineWord(count: number): string {
-  if (count === 1) return 'линия';
-  if (count > 1 && count < 5) return 'линии';
-  return 'линий';
+  if (count === 1) return tr('линия', 'line');
+  if (count > 1 && count < 5) return tr('линии', 'lines');
+  return tr('линий', 'lines');
 }
 
 export default function Leaderboard({ results, currentParticipantId }: LeaderboardProps) {
   if (results.length === 0) {
-    return <div className="leaderboard-empty"><span className="empty-glyph">✳</span><strong>Таблица пока пуста.</strong><p>Для итогов нужны полностью собранные карточки.</p></div>;
+    return <div className="leaderboard-empty"><span className="empty-glyph">✳</span><strong>{tr('Таблица пока пуста.', 'No scores yet.')}</strong><p>{tr('Для итогов нужны полностью собранные карточки.', 'Only complete cards are included in the final results.')}</p></div>;
   }
 
   let previousScore: number | null = null;

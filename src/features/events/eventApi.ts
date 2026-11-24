@@ -1,6 +1,7 @@
 import type { EventRow, EventTriggerRow, ParticipantRow, Json } from '../../lib/database.types';
 import { requireSupabase } from '../../lib/supabase';
 import type { EventDraft } from './eventValidation';
+import { tr } from '../../lib/i18n';
 
 export interface CreatedEvent {
   eventId: string;
@@ -60,11 +61,11 @@ export async function getFollowedTwitchIds(): Promise<Set<string>> {
   const client = requireSupabase();
   const twitchClientId = import.meta.env.VITE_TWITCH_CLIENT_ID?.trim();
   const providerToken = window.localStorage.getItem('bingo:twitch-provider-token');
-  if (!twitchClientId) throw new Error('Не настроен Twitch Client ID для поиска подписок.');
-  if (!providerToken) throw new Error('Перезайди через Twitch, чтобы разрешить чтение подписок.');
+  if (!twitchClientId) throw new Error(tr('Не настроен Twitch Client ID для поиска подписок.', 'Twitch Client ID is not configured for follower lookup.'));
+  if (!providerToken) throw new Error(tr('Перезайди через Twitch, чтобы разрешить чтение подписок.', 'Sign in with Twitch again to allow access to your follows.'));
   const { data: userId, error } = await client.rpc('get_my_twitch_id');
   if (error) throw error;
-  if (!userId) throw new Error('Не удалось определить твой Twitch ID. Войди через Twitch ещё раз.');
+  if (!userId) throw new Error(tr('Не удалось определить твой Twitch ID. Войди через Twitch ещё раз.', 'Could not identify your Twitch ID. Sign in with Twitch again.'));
 
   const followed = new Set<string>();
   let cursor: string | undefined;
@@ -77,8 +78,8 @@ export async function getFollowedTwitchIds(): Promise<Set<string>> {
       headers: { 'Client-ID': twitchClientId, Authorization: `Bearer ${providerToken}` },
     });
     if (!response.ok) {
-      if (response.status === 401) throw new Error('Разрешение Twitch истекло или подписки не разрешены. Выйди и войди через Twitch заново.');
-      throw new Error('Не удалось получить список Twitch-подписок. Попробуй позже.');
+      if (response.status === 401) throw new Error(tr('Разрешение Twitch истекло или подписки не разрешены. Выйди и войди через Twitch заново.', 'Twitch authorization expired or follows access was denied. Sign out and back in.'));
+      throw new Error(tr('Не удалось получить список Twitch-подписок. Попробуй позже.', 'Could not load your Twitch follows. Try again later.'));
     }
     const page = await response.json() as { data?: Array<{ broadcaster_id: string }>; pagination?: { cursor?: string } };
     for (const channel of page.data ?? []) followed.add(channel.broadcaster_id);
@@ -118,19 +119,19 @@ export async function createEvent(input: EventDraft): Promise<CreatedEvent> {
   if (input.isPublic) {
     const result = data as Json;
     if (!result || typeof result !== 'object' || Array.isArray(result) || typeof result.event_id !== 'string') {
-      throw new Error('Событие создано, но не удалось включить публичность.');
+      throw new Error(tr('Событие создано, но не удалось включить публичность.', 'Event created, but public listing could not be enabled.'));
     }
     const { error: visibilityError } = await requireSupabase().rpc('set_event_public', { target_event_id: result.event_id, public_value: true });
     if (visibilityError) throw visibilityError;
   }
   const result = data as Json;
   if (!result || typeof result !== 'object' || Array.isArray(result)) {
-    throw new Error('Событие создано, но сервер не вернул ссылку для ведущего.');
+    throw new Error(tr('Событие создано, но сервер не вернул ссылку для ведущего.', 'Event created, but the server did not return a host link.'));
   }
   const eventId = result.event_id;
   const inviteToken = result.invite_token;
   if (typeof eventId !== 'string' || typeof inviteToken !== 'string') {
-    throw new Error('Сервер вернул неполные данные события.');
+    throw new Error(tr('Сервер вернул неполные данные события.', 'The server returned incomplete event data.'));
   }
   return { eventId, inviteToken };
 }
@@ -138,7 +139,7 @@ export async function createEvent(input: EventDraft): Promise<CreatedEvent> {
 export async function getEvent(eventId: string): Promise<EventRow> {
   const { data, error } = await requireSupabase().from('events').select('*').eq('id', eventId).maybeSingle();
   if (error) throw error;
-  if (!data) throw new Error('Событие не найдено или у вас нет доступа.');
+  if (!data) throw new Error(tr('Событие не найдено или у вас нет доступа.', 'Event not found or you do not have access.'));
   return data;
 }
 

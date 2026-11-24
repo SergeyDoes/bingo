@@ -2,7 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import App from './App';
+import { language } from './lib/i18n';
 import './styles.css';
+
+document.documentElement.lang = language;
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

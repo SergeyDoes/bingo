@@ -10,9 +10,10 @@ import { getEvent, getEventResults, getEventTriggers, type EventResult } from '.
 import { getParticipantCard, saveCard } from './cardApi';
 import CardBuilder from './CardBuilder';
 import { requireSupabase } from '../../lib/supabase';
+import { language, locale, tr } from '../../lib/i18n';
 
 function formatDate(date: string): string {
-  return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }).format(new Date(date));
+  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(date));
 }
 
 function toGridCells(gridSize: number, saved: CardCellRow[]): Array<string | null> {
@@ -60,7 +61,7 @@ export default function ParticipantEventPage() {
       savedCellsRef.current = cardData.cells;
       setResults(resultData);
     } catch (cause) {
-      setError(formatError(cause, 'Не удалось загрузить игровое поле.'));
+      setError(formatError(cause, tr('Не удалось загрузить игровое поле.', 'Could not load the game board.')));
     } finally {
       setLoading(false);
     }
@@ -98,43 +99,43 @@ export default function ParticipantEventPage() {
     try {
       const payload = draftCells.flatMap((triggerId, position) => triggerId ? [{ position, triggerId }] : []);
       await saveCard(participant.id, payload);
-      setNotice(payload.length === event.grid_size * event.grid_size ? 'Карточка сохранена. До старта её ещё можно изменить.' : 'Прогресс сохранён. Карточку можно будет дополнить до старта.');
+      setNotice(payload.length === event.grid_size * event.grid_size ? tr('Карточка сохранена. До старта её ещё можно изменить.', 'Card saved. You can still edit it before the game starts.') : tr('Прогресс сохранён. Карточку можно будет дополнить до старта.', 'Progress saved. You can complete your card before the game starts.'));
       await refresh();
     } catch (cause) {
-      setError(formatError(cause, 'Не получилось сохранить карточку.'));
+      setError(formatError(cause, tr('Не получилось сохранить карточку.', 'Could not save the card.')));
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) return <main className="workspace-page"><div className="loading-panel full-loading">Раскладываем карточки<span className="loading-dots">•••</span></div></main>;
-  if (!event || !participant) return <main className="workspace-page"><header className="workspace-topbar"><Link className="brand" to="/"><span className="brand-mark">Б</span><span>БИНГО<span className="brand-period">.</span></span></Link></header><div className="not-found-card"><span className="eyebrow">НЕ УДАЛОСЬ ОТКРЫТЬ КАРТОЧКУ</span><p>{error || 'Попроси ведущего прислать актуальную ссылку.'}</p><Link className="button button-primary" to="/">На главную <span>↗</span></Link></div></main>;
+  if (loading) return <main className="workspace-page"><div className="loading-panel full-loading">{tr('Раскладываем карточки', 'Setting up your card')}<span className="loading-dots">•••</span></div></main>;
+  if (!event || !participant) return <main className="workspace-page"><header className="workspace-topbar"><Link className="brand" to="/"><span className="brand-mark">Б</span><span>BINGO<span className="brand-period">.</span></span></Link></header><div className="not-found-card"><span className="eyebrow">{tr('НЕ УДАЛОСЬ ОТКРЫТЬ КАРТОЧКУ', 'COULD NOT OPEN CARD')}</span><p>{error || tr('Попроси ведущего прислать актуальную ссылку.', 'Ask the host to send you the current link.')}</p><Link className="button button-primary" to="/">{tr('На главную', 'Home')} <span>↗</span></Link></div></main>;
 
   const locked = phase !== 'signup';
-  const status = phase === 'signup' ? 'Собираем карточки' : phase === 'active' ? 'Игра идёт' : 'Итоги зафиксированы';
+  const status = phase === 'signup' ? tr('Собираем карточки', 'Build your cards') : phase === 'active' ? tr('Игра идёт', 'Game in progress') : tr('Итоги зафиксированы', 'Results finalized');
 
   return (
     <main className="workspace-page">
-      <header className="workspace-topbar"><Link className="brand" to="/" aria-label="Бинго — на главную"><span className="brand-mark">Б</span><span>БИНГО<span className="brand-period">.</span></span></Link><div className="participant-view-actions">{event.host_id === user?.id && <Link className="quiet-link" to={`/host/${event.id}`}>УПРАВЛЕНИЕ ↗</Link>}<span className="participant-name">ИГРОК · {participant.display_name}</span></div></header>
+      <header className="workspace-topbar"><Link className="brand" to="/" aria-label={tr('Бинго — на главную', 'Bingo — home')}><span className="brand-mark">Б</span><span>BINGO<span className="brand-period">.</span></span></Link><div className="participant-view-actions">{event.host_id === user?.id && <Link className="quiet-link" to={`/host/${event.id}`}>{tr('УПРАВЛЕНИЕ', 'MANAGE')} ↗</Link>}<span className="participant-name">{tr('ИГРОК', 'PLAYER')} · {participant.display_name}</span></div></header>
       <section className="participant-event-heading">
-        <div><span className={`event-status ${phase === 'signup' ? 'status-open' : phase === 'active' ? 'status-live' : 'status-final'}`}><i />{status}</span><h1><span className="event-title-emoji" aria-hidden="true">{event.emoji}</span>{event.title}</h1><p>{phase === 'signup' ? `Выбери триггеры до ${formatDate(event.signup_deadline)}.` : phase === 'active' ? 'Карточка заблокирована. Следи за тем, что сбылось.' : 'Игра закончена — финальные результаты ниже.'}</p></div>
-        {phase !== 'signup' && <div className="participant-score"><span>ТВОЙ СЧЁТ</span><strong>{score.toString().padStart(2, '0')}</strong><small>{score === 1 ? 'ЛИНИЯ' : score >= 2 && score <= 4 ? 'ЛИНИИ' : 'ЛИНИЙ'}</small></div>}
+        <div><span className={`event-status ${phase === 'signup' ? 'status-open' : phase === 'active' ? 'status-live' : 'status-final'}`}><i />{status}</span><h1><span className="event-title-emoji" aria-hidden="true">{event.emoji}</span>{event.title}</h1><p>{phase === 'signup' ? tr(`Выбери триггеры до ${formatDate(event.signup_deadline)}.`, `Choose your triggers by ${formatDate(event.signup_deadline)}.`) : phase === 'active' ? tr('Карточка заблокирована. Следи за тем, что сбылось.', 'Your card is locked. Watch for triggers as they happen.') : tr('Игра закончена — финальные результаты ниже.', 'The game is over. See the final results below.')}</p></div>
+        {phase !== 'signup' && <div className="participant-score"><span>{tr('ТВОЙ СЧЁТ', 'YOUR SCORE')}</span><strong>{score.toString().padStart(2, '0')}</strong><small>{score === 1 ? tr('ЛИНИЯ', 'LINE') : language === 'ru' && score >= 2 && score <= 4 ? 'ЛИНИИ' : tr('ЛИНИЙ', 'LINES')}</small></div>}
       </section>
 
-      {error && <div className="inline-error" role="alert">{error}<button className="quiet-button" onClick={() => void refresh()}>Обновить</button></div>}
-      {notice && <div className="inline-notice" role="status">{notice}<button className="quiet-button" onClick={() => setNotice('')} aria-label="Скрыть сообщение">×</button></div>}
-      {locked && !complete && <div className="incomplete-warning"><span>!</span><div><strong>Карточка не попала в игру.</strong><p>К моменту старта в ней было {savedCells.length} из {event.grid_size * event.grid_size} ячеек. Незавершённые карточки не участвуют в подсчёте.</p></div></div>}
-      {locked && complete && phase === 'active' && <div className="participant-note"><span>✳</span><p>Карточка заблокирована. Когда ведущий отметит триггер, клетка подсветится здесь.</p></div>}
+      {error && <div className="inline-error" role="alert">{error}<button className="quiet-button" onClick={() => void refresh()}>{tr('Обновить', 'Refresh')}</button></div>}
+      {notice && <div className="inline-notice" role="status">{notice}<button className="quiet-button" onClick={() => setNotice('')} aria-label={tr('Скрыть сообщение', 'Dismiss message')}>×</button></div>}
+      {locked && !complete && <div className="incomplete-warning"><span>!</span><div><strong>{tr('Карточка не попала в игру.', 'Your card was not included in the game.')}</strong><p>{tr(`К моменту старта в ней было ${savedCells.length} из ${event.grid_size * event.grid_size} ячеек. Незавершённые карточки не участвуют в подсчёте.`, `At the start, it had ${savedCells.length} of ${event.grid_size * event.grid_size} cells. Incomplete cards are not scored.`)}</p></div></div>}
+      {locked && complete && phase === 'active' && <div className="participant-note"><span>✳</span><p>{tr('Карточка заблокирована. Когда ведущий отметит триггер, клетка подсветится здесь.', 'Your card is locked. Cells will light up when the host marks a trigger.')}</p></div>}
 
       <section className="participant-board-section">
-        <div className="participant-board-heading"><div><span className="eyebrow">ТВОЯ КАРТОЧКА</span><h2>{locked ? 'Игра началась' : 'Выбери триггеры'}</h2></div>{!locked && <span className="progress-pill">{draftCells.filter(Boolean).length} / {event.grid_size * event.grid_size}</span>}</div>
+        <div className="participant-board-heading"><div><span className="eyebrow">{tr('ТВОЯ КАРТОЧКА', 'YOUR CARD')}</span><h2>{locked ? tr('Игра началась', 'The game has started') : tr('Выбери триггеры', 'Choose your triggers')}</h2></div>{!locked && <span className="progress-pill">{draftCells.filter(Boolean).length} / {event.grid_size * event.grid_size}</span>}</div>
         <CardBuilder gridSize={event.grid_size} triggers={triggers} cells={locked ? toGridCells(event.grid_size, savedCells) : draftCells} locked={locked} saving={saving} onChange={setDraftCells} onSave={() => void persistCard()} />
-        {!locked && dirty && <p className="unsaved-hint">Есть несохранённые изменения — нажми кнопку под списком триггеров.</p>}
+        {!locked && dirty && <p className="unsaved-hint">{tr('Есть несохранённые изменения — нажми кнопку под списком триггеров.', 'You have unsaved changes. Use the button below the trigger list to save.')}</p>}
       </section>
 
-      {phase === 'finalized' && <section className="leaderboard-section"><div className="participant-board-heading"><div><span className="eyebrow">ФИНАЛЬНЫЕ РЕЗУЛЬТАТЫ</span><h2>Таблица лидеров</h2></div><span className="count-badge">{results.length.toString().padStart(2, '0')}</span></div><Leaderboard results={results} currentParticipantId={participant.id} /></section>}
+      {phase === 'finalized' && <section className="leaderboard-section"><div className="participant-board-heading"><div><span className="eyebrow">{tr('ФИНАЛЬНЫЕ РЕЗУЛЬТАТЫ', 'FINAL RESULTS')}</span><h2>{tr('Таблица лидеров', 'Leaderboard')}</h2></div><span className="count-badge">{results.length.toString().padStart(2, '0')}</span></div><Leaderboard results={results} currentParticipantId={participant.id} /></section>}
 
-      <footer className="workspace-footer"><span>СТАРТ · {formatDate(event.signup_deadline)}</span><Link to="/">БИНГО · НА ГЛАВНУЮ ↑</Link></footer>
+      <footer className="workspace-footer"><span>{tr('СТАРТ', 'START')} · {formatDate(event.signup_deadline)}</span><Link to="/">BINGO · {tr('НА ГЛАВНУЮ', 'HOME')} ↑</Link></footer>
     </main>
   );
 }
